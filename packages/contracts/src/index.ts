@@ -6,6 +6,7 @@ export type BikeSummary = {
   status: string
   location: string | null
   nextAction: string | null
+  qrToken?: string | null
 }
 
 export type DepositType = 'document_custody' | 'cash'
@@ -19,4 +20,14 @@ export type DepositSummary = {
   documentMasked: string | null
   receivedAt: string | null
   returnedAt: string | null
+}
+
+export type DashboardData = {
+  stats: {
+    total: number
+    available: number
+    rented: number
+    attention: number
+  }
+  recentBikes: BikeSummary[]
 }

@@ -29,6 +29,7 @@ async function submit() {
     pending.value = false
   }
 }
+definePageMeta({ layout: false })
 </script>
 
 <template>

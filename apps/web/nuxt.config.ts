@@ -1,8 +1,8 @@
 import { config } from 'dotenv'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 
 if (process.env.NODE_ENV !== 'production') {
-  config({ path: fileURLToPath(new URL('../../.env', import.meta.url)) })
+  config({ path: resolve(process.cwd(), '../../.env') })
 }
 
 export default defineNuxtConfig({
@@ -20,6 +20,9 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     databaseUrl: process.env.DATABASE_URL,
+    databaseProvider: process.env.DATABASE_PROVIDER,
+    pgliteDataDir: process.env.PGLITE_DATA_DIR,
+    pgliteAutoMigrate: process.env.PGLITE_AUTO_MIGRATE,
     s3Endpoint: process.env.S3_ENDPOINT,
     s3Region: process.env.S3_REGION,
     s3Bucket: process.env.S3_BUCKET,

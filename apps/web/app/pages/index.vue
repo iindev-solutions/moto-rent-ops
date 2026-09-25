@@ -1,12 +1,37 @@
 <script setup lang="ts">
+import type { DashboardData } from '@book-moto/contracts'
 import { normalizeLocatorToken } from '@book-moto/domain/qr'
 
 const router = useRouter()
 const { t } = useLocale()
+const search = ref('')
 const manualCode = ref('')
 const scannerOpen = ref(false)
 const scannerError = ref('')
-const { data: health } = await useFetch('/api/health')
+const { data: dashboard } = await useFetch<DashboardData>('/api/dashboard')
+
+const stats = computed(() => dashboard.value?.stats || { total: 0, available: 0, rented: 0, attention: 0 })
+const visibleBikes = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  const bikes = dashboard.value?.recentBikes || []
+  if (!query) return bikes
+  return bikes.filter(bike => [bike.assetCode, bike.model, bike.plate, bike.location].some(value => value?.toLowerCase().includes(query)))
+})
+
+const statusKeys = {
+  available: 'status.available',
+  reserved: 'status.reserved',
+  rented: 'status.rented',
+  inspection: 'status.inspection',
+  maintenance: 'status.maintenance',
+  blocked: 'status.blocked',
+  retired: 'status.retired',
+} as const
+
+function statusLabel(status: string) {
+  const key = statusKeys[status as keyof typeof statusKeys]
+  return key ? t(key) : t('common.unknown')
+}
 
 function openManualLookup() {
   const token = normalizeLocatorToken(manualCode.value)
@@ -32,90 +57,78 @@ function onScan(value: string) {
 </script>
 
 <template>
-  <div class="page-shell">
-    <header class="topbar">
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-5 px-4 py-4 sm:px-6 lg:px-8">
-        <div class="flex items-center gap-6">
-          <NuxtLink to="/" class="brand-mark">MOTO<em>//</em>OPS</NuxtLink>
-          <nav class="hidden items-center gap-5 lg:flex" aria-label="Primary navigation">
-            <NuxtLink to="/" class="quiet-link text-[var(--ink)]">{{ t('nav.today') }}</NuxtLink>
-            <NuxtLink to="/" class="quiet-link">{{ t('nav.bikes') }}</NuxtLink>
-            <NuxtLink to="/" class="quiet-link">{{ t('nav.people') }}</NuxtLink>
-            <NuxtLink to="/" class="quiet-link">{{ t('nav.notifications') }}</NuxtLink>
-          </nav>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="hidden items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)] sm:flex">
-            <span class="status-dot" aria-hidden="true" />
-            {{ health?.status === 'ok' ? t('common.apiOnline') : t('common.apiCheck') }}
-          </span>
-          <LocaleSwitcher />
-        </div>
+  <div>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Operations / 01</p>
+        <h1 class="page-title mt-2">{{ t('nav.today') }}</h1>
+        <p class="page-subtitle">{{ t('dashboard.subtitle') }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <UButton class="button-secondary" icon="i-lucide-download" variant="ghost">{{ t('dashboard.export') }}</UButton>
+        <UButton class="button-primary" icon="i-lucide-scan-line" @click="scannerOpen = true">{{ t('home.scan') }}</UButton>
       </div>
     </header>
 
-    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-      <section class="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.75fr)]">
-        <div class="surface p-6 sm:p-10">
-          <p class="eyebrow">{{ t('home.eyebrow') }}</p>
-          <h1 class="display-title mt-8">{{ t('home.title') }}</h1>
-          <p class="mt-6 max-w-xl text-base leading-7 text-[var(--muted)] sm:text-lg">{{ t('home.subtitle') }}</p>
+    <section class="stat-grid" aria-label="Fleet statistics">
+      <div class="stat-card">
+        <div class="flex items-center justify-between"><p class="data-label">{{ t('home.fleet') }}</p><UIcon name="i-lucide-bike" class="size-4 text-[var(--text-muted)]" /></div>
+        <p class="stat-value">{{ stats.total }}</p>
+        <p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.fleetHint') }}</p>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between"><p class="data-label">{{ t('status.available') }}</p><UIcon name="i-lucide-circle-check" class="size-4 text-[var(--success)]" /></div>
+        <p class="stat-value">{{ stats.available }}</p>
+        <p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.rentedHint') }}</p>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between"><p class="data-label">{{ t('status.rented') }}</p><UIcon name="i-lucide-key-round" class="size-4 text-[var(--accent)]" /></div>
+        <p class="stat-value">{{ stats.rented }}</p>
+        <p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.rentedHint') }}</p>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between"><p class="data-label">{{ t('home.attention') }}</p><UIcon name="i-lucide-triangle-alert" class="size-4 text-[var(--warning)]" /></div>
+        <p class="stat-value">{{ stats.attention }}</p>
+        <p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.attentionHint') }}</p>
+      </div>
+    </section>
 
-          <div class="mt-10 grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-            <UButton class="button-primary justify-center px-5" icon="i-lucide-scan-line" @click="scannerOpen = true">
-              {{ t('home.scan') }}
-            </UButton>
-            <UInput
-              v-model="manualCode"
-              class="brutal-input"
-              :placeholder="t('home.placeholder')"
-              :aria-label="t('home.lookup')"
-              @keyup.enter="openManualLookup"
-            />
-            <UButton class="button-secondary justify-center px-5" @click="openManualLookup">{{ t('home.open') }}</UButton>
-          </div>
-          <p v-if="scannerError" class="mt-3 font-mono text-xs text-[var(--signal)]" role="alert">{{ scannerError }}</p>
-          <p class="mt-5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--muted)]">{{ t('home.deepLink') }}</p>
+    <section class="content-grid">
+      <div class="panel overflow-hidden">
+        <div class="panel-header">
+          <div><p class="panel-title">{{ t('dashboard.recent') }}</p><p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.subtitle') }}</p></div>
+          <UInput v-model="search" class="brutal-input max-w-56" :placeholder="t('dashboard.search')" :aria-label="t('dashboard.search')" />
         </div>
+        <div v-if="visibleBikes.length" class="overflow-x-auto">
+          <table class="data-table">
+            <thead><tr><th>{{ t('home.fleet') }}</th><th>{{ t('bike.status') }}</th><th>{{ t('bike.location') }}</th><th>{{ t('bike.nextAction') }}</th></tr></thead>
+            <tbody>
+              <tr v-for="bike in visibleBikes" :key="bike.id">
+                <td><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="font-semibold hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else class="font-semibold">{{ bike.assetCode }} · {{ bike.model }}</span><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
+                <td><span class="status-pill">{{ statusLabel(bike.status) }}</span></td>
+                <td>{{ bike.location || '—' }}</td>
+                <td>{{ bike.nextAction || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="empty-state">{{ t('dashboard.noRecords') }}</div>
+      </div>
 
-        <aside class="surface-dark flex flex-col justify-between p-6 sm:p-8">
-          <div>
-            <div class="flex items-center justify-between border-b border-white/20 pb-4 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">
-              <span>{{ t('home.system') }}</span>
-              <span class="text-[var(--acid)]">{{ t('home.live') }}</span>
-            </div>
-            <h2 class="mt-8 max-w-xs text-3xl font-extrabold leading-[0.98] tracking-[-0.055em] text-[var(--surface)]">{{ t('home.source') }}</h2>
+      <aside class="panel overflow-hidden">
+        <div class="panel-header"><p class="panel-title">{{ t('dashboard.quickActions') }}</p><UIcon name="i-lucide-zap" class="size-4 text-[var(--accent)]" /></div>
+        <div class="panel-body space-y-2">
+          <button class="quick-action w-full" type="button" @click="scannerOpen = true"><UIcon name="i-lucide-scan-line" class="size-4" /><span>{{ t('home.scan') }}</span></button>
+          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <UInput v-model="manualCode" class="brutal-input" :placeholder="t('home.placeholder')" :aria-label="t('home.lookup')" @keyup.enter="openManualLookup" />
+            <UButton class="button-secondary" @click="openManualLookup">{{ t('home.open') }}</UButton>
           </div>
-          <div class="mt-12 grid grid-cols-2 gap-2">
-            <div class="metric-card"><p class="data-label text-white/50">{{ t('home.fleet') }}</p><p class="metric-value text-[var(--surface)]">—</p></div>
-            <div class="metric-card"><p class="data-label text-white/50">{{ t('home.attention') }}</p><p class="metric-value text-[var(--acid)]">—</p></div>
-            <div class="metric-card"><p class="data-label text-white/50">{{ t('home.payments') }}</p><p class="metric-value text-[var(--surface)]">—</p></div>
-            <div class="metric-card"><p class="data-label text-white/50">{{ t('home.residency') }}</p><p class="mt-3 font-mono text-xs font-bold uppercase text-[var(--acid)]">Vietnam</p></div>
-          </div>
-        </aside>
-      </section>
-
-      <section class="mt-5 grid gap-5 md:grid-cols-3">
-        <article class="surface p-6">
-          <div class="flex items-center justify-between"><p class="eyebrow">{{ t('home.todayKicker') }}</p><UIcon name="i-lucide-arrow-up-right" class="size-4 text-[var(--muted)]" /></div>
-          <h2 class="mt-8 text-2xl font-extrabold tracking-[-0.045em]">{{ t('home.todayTitle') }}</h2>
-          <p class="mt-3 text-sm leading-6 text-[var(--muted)]">{{ t('home.todayBody') }}</p>
-          <UButton class="mt-8" variant="ghost" trailing-icon="i-lucide-arrow-right">{{ t('home.openQueue') }}</UButton>
-        </article>
-        <article class="surface p-6">
-          <div class="flex items-center justify-between"><p class="eyebrow">{{ t('home.fleetKicker') }}</p><UIcon name="i-lucide-bike" class="size-4 text-[var(--muted)]" /></div>
-          <h2 class="mt-8 text-2xl font-extrabold tracking-[-0.045em]">{{ t('home.fleetTitle') }}</h2>
-          <p class="mt-3 text-sm leading-6 text-[var(--muted)]">{{ t('home.fleetBody') }}</p>
-          <UButton class="mt-8" variant="ghost" trailing-icon="i-lucide-arrow-right">{{ t('home.openFleet') }}</UButton>
-        </article>
-        <article class="surface p-6">
-          <div class="flex items-center justify-between"><p class="eyebrow">{{ t('home.financeKicker') }}</p><UIcon name="i-lucide-landmark" class="size-4 text-[var(--muted)]" /></div>
-          <h2 class="mt-8 text-2xl font-extrabold tracking-[-0.045em]">{{ t('home.financeTitle') }}</h2>
-          <p class="mt-3 text-sm leading-6 text-[var(--muted)]">{{ t('home.financeBody') }}</p>
-          <UButton class="mt-8" variant="ghost" trailing-icon="i-lucide-arrow-right">{{ t('home.openFinance') }}</UButton>
-        </article>
-      </section>
-    </main>
+          <p v-if="scannerError" class="text-xs text-[var(--danger)]" role="alert">{{ scannerError }}</p>
+        </div>
+        <div class="panel-header border-t border-b-0"><p class="panel-title">{{ t('dashboard.regions') }}</p><span class="status-pill">{{ t('dashboard.vietnam') }}</span></div>
+        <div class="panel-body pt-0 text-sm text-[var(--text-muted)]">{{ t('home.residency') }}: <span class="font-semibold text-[var(--text)]">Vietnam</span></div>
+      </aside>
+    </section>
 
     <BikeScanner v-if="scannerOpen" @close="scannerOpen = false" @found="onScan" />
   </div>
