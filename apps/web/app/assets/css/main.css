@@ -1,0 +1,107 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+  --font-sans: "Arial", "Helvetica Neue", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+:root {
+  --paper: #f3f1ea;
+  --paper-raised: #fffdf7;
+  --ink: #11110f;
+  --muted: #696960;
+  --line: #1b1b18;
+  --acid: #d7ff3f;
+  --signal: #ff5c35;
+  --success: #2e7d4f;
+  --warning: #b7791f;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  background:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px),
+    var(--paper);
+  background-size: 32px 32px;
+}
+
+::selection {
+  background: var(--acid);
+  color: var(--ink);
+}
+
+.brutal-panel {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper-raised) 94%, transparent);
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.brutal-dark {
+  border: 1px solid var(--line);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 5px 5px 0 var(--line);
+}
+
+.brutal-button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  background: var(--acid);
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 3px 3px 0 var(--line);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.brutal-button:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.brutal-button:focus-visible {
+  outline: 3px solid var(--signal);
+  outline-offset: 3px;
+}
+
+.brutal-input {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.brutal-input:focus {
+  outline: 3px solid var(--acid);
+  outline-offset: 2px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--line);
+  background: var(--acid);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

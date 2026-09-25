@@ -1,0 +1,29 @@
+{
+  "name": "@book-moto/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@book-moto/contracts": "*",
+    "@book-moto/db": "*",
+    "@book-moto/domain": "*",
+    "@nuxt/ui": "4.11.2",
+    "@pinia/nuxt": "1.0.2",
+    "@vite-pwa/nuxt": "1.1.1",
+    "nuxt": "4.5.2",
+    "tailwindcss": "4.3.3",
+    "zod": "4.6.5",
+    "zxing-wasm": "3.1.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^26.6.2",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.11"
+  }
+}

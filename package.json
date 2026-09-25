@@ -1,0 +1,27 @@
+{
+  "name": "book-moto",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm --workspace @book-moto/web run dev",
+    "build": "npm --workspace @book-moto/web run build",
+    "typecheck": "npm --workspace @book-moto/web run typecheck",
+    "db:generate": "npm --workspace @book-moto/db run generate",
+    "db:migrate": "npm --workspace @book-moto/db run migrate",
+    "db:seed": "npm --workspace @book-moto/db run seed"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "overrides": {
+    "typescript": "5.9.3"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
