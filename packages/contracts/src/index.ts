@@ -8,7 +8,9 @@ export type BikeSummary = {
   nextAction: string | null
 }
 
-export type DepositType = 'document_custody' | 'cash_2m_vnd' | 'cash_5m_vnd'
+export type DepositType = 'document_custody' | 'cash'
+
+export const DEFAULT_DEPOSIT_PRESETS_VND = [2_000_000, 5_000_000] as const
 
 export type DepositSummary = {
   type: DepositType

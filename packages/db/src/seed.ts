@@ -3,12 +3,18 @@ import { fileURLToPath } from 'node:url'
 import { and, eq } from 'drizzle-orm'
 import { hash } from 'argon2'
 import { randomUUID } from 'node:crypto'
-import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
+import { buildBikeDeepLink, canonicalizeLocatorToken } from '@book-moto/domain/qr'
 import { closeDb, getDb } from './client'
-import { encryptLocatorToken, hashLocatorToken } from './crypto'
+import { decryptLocatorToken, encryptLocatorToken, hashLocatorToken } from './crypto'
 import { motorcycles, qrIdentities, qrPayloads, users } from './schema'
 
 config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) })
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('db:seed is disabled in production')
+}
+
+const qrDeepLinks: string[] = []
+const appUrl = process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 const db = await getDb()
 
@@ -58,11 +64,15 @@ for (const fixture of fixtures) {
     throw new Error(`Could not create QR identity for ${fixture.assetCode}`)
   }
 
-  const [activePayload] = await db.select({ id: qrPayloads.id }).from(qrPayloads).where(and(
+  const [activePayload] = await db.select({ id: qrPayloads.id, tokenCiphertext: qrPayloads.tokenCiphertext }).from(qrPayloads).where(and(
     eq(qrPayloads.identityId, identity.id),
     eq(qrPayloads.status, 'active'),
   )).limit(1)
   if (activePayload) {
+    const existingToken = decryptLocatorToken(activePayload.tokenCiphertext)
+    if (existingToken) {
+      qrDeepLinks.push(buildBikeDeepLink(appUrl, existingToken))
+    }
     continue
   }
 
@@ -76,7 +86,12 @@ for (const fixture of fixtures) {
     tokenHash: hashLocatorToken(token),
     tokenCiphertext: encryptLocatorToken(token),
   })
+  qrDeepLinks.push(buildBikeDeepLink(appUrl, token))
 }
 
 await closeDb()
 console.log(`Seeded ${fixtures.length} motorcycle fixtures`)
+console.log('Local QR deep links:')
+for (const link of qrDeepLinks) {
+  console.log(link)
+}

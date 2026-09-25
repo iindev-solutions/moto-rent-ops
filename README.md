@@ -17,6 +17,7 @@ Production-first motorcycle rental operations PWA.
 2. Install dependencies: `npm install`.
 3. Apply the same SQL migrations to PGlite: `npm run db:generate && npm run db:migrate`.
 4. Seed local users and fleet records: `npm run db:seed`.
+   The seed command prints local `/b/{token}` deep links for immediate manual testing.
 5. Start Nuxt: `npm run dev`.
 
 PGlite persists to `.data/pglite`; the local filesystem storage adapter uses `.data/documents`. Docker is optional and is not required for the default development path. Production uses managed PostgreSQL and VNPT/S3 through the same interfaces.
