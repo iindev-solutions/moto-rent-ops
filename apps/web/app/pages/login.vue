@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const { fetch: refreshSession } = useUserSession()
+const { t } = useLocale()
 const email = ref('')
 const password = ref('')
 const pending = ref(false)
@@ -23,7 +24,7 @@ async function submit() {
     await refreshSession()
     await navigateTo(response.returnTo)
   } catch {
-    errorMessage.value = 'Неверный email или пароль.'
+    errorMessage.value = t('login.error')
   } finally {
     pending.value = false
   }
@@ -31,24 +32,27 @@ async function submit() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center px-4 py-10">
-    <section class="brutal-dark w-full max-w-md p-6 sm:p-10">
-      <NuxtLink to="/" class="font-mono text-sm font-black tracking-[0.18em]">MOTO<span class="text-[var(--signal)]">//</span>OPS</NuxtLink>
-      <p class="mt-12 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--paper)]/60">Secure operations access</p>
-      <h1 class="mt-3 text-4xl font-black tracking-[-0.06em] text-[var(--paper)]">Войти в систему</h1>
-      <p class="mt-4 text-sm leading-6 text-[var(--paper)]/70">Доступ к карточкам байков, арендам и финансам защищён сессией и проверкой прав.</p>
+  <div class="page-shell flex items-center justify-center px-4 py-10">
+    <section class="surface-dark w-full max-w-md p-6 sm:p-10">
+      <div class="flex items-center justify-between gap-4">
+        <NuxtLink to="/" class="brand-mark text-[var(--surface)]">MOTO<em>//</em>OPS</NuxtLink>
+        <LocaleSwitcher />
+      </div>
+      <p class="eyebrow mt-14 text-white/50">{{ t('login.eyebrow') }}</p>
+      <h1 class="mt-3 text-4xl font-extrabold tracking-[-0.06em] text-[var(--surface)]">{{ t('login.title') }}</h1>
+      <p class="mt-4 text-sm leading-6 text-white/65">{{ t('login.subtitle') }}</p>
 
       <form class="mt-8 space-y-4" @submit.prevent="submit">
         <div>
-          <label for="email" class="mb-2 block font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--paper)]/70">Email</label>
+          <label for="email" class="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-white/60">{{ t('login.email') }}</label>
           <UInput id="email" v-model="email" class="brutal-input" type="email" autocomplete="username" required />
         </div>
         <div>
-          <label for="password" class="mb-2 block font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--paper)]/70">Пароль</label>
+          <label for="password" class="mb-2 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-white/60">{{ t('login.password') }}</label>
           <UInput id="password" v-model="password" class="brutal-input" type="password" autocomplete="current-password" required />
         </div>
         <p v-if="errorMessage" class="font-mono text-xs text-[var(--signal)]" role="alert">{{ errorMessage }}</p>
-        <UButton class="brutal-button w-full justify-center" type="submit" :loading="pending">Войти</UButton>
+        <UButton class="button-primary w-full justify-center" type="submit" :loading="pending">{{ t('login.submit') }}</UButton>
       </form>
     </section>
   </div>

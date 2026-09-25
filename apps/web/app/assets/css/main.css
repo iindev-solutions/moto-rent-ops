@@ -2,24 +2,27 @@
 @import "@nuxt/ui";
 
 @theme {
-  --font-sans: "Arial", "Helvetica Neue", sans-serif;
+  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 :root {
-  --paper: #f3f1ea;
-  --paper-raised: #fffdf7;
-  --ink: #11110f;
-  --muted: #696960;
-  --line: #1b1b18;
-  --acid: #d7ff3f;
-  --signal: #ff5c35;
-  --success: #2e7d4f;
-  --warning: #b7791f;
+  --canvas: #ecebe5;
+  --surface: #fbfaf6;
+  --surface-strong: #ffffff;
+  --ink: #151612;
+  --muted: #6b6b63;
+  --line: rgba(21, 22, 18, 0.16);
+  --line-strong: #151612;
+  --acid: #c9f000;
+  --signal: #ff5b3d;
+  --blue: #4169e1;
+  --success: #26734d;
+  --warning: #a66a17;
 }
 
 html {
-  background: var(--paper);
+  background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
 }
@@ -28,11 +31,9 @@ body {
   min-width: 320px;
   min-height: 100dvh;
   margin: 0;
-  background:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px),
-    var(--paper);
-  background-size: 32px 32px;
+  background-color: var(--canvas);
+  background-image: radial-gradient(circle at 1px 1px, rgba(21, 22, 18, 0.1) 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
 ::selection {
@@ -40,60 +41,209 @@ body {
   color: var(--ink);
 }
 
+.page-shell {
+  min-height: 100dvh;
+  color: var(--ink);
+}
+
+.topbar {
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--canvas) 88%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.brand-mark {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.brand-mark em {
+  color: var(--signal);
+  font-style: normal;
+}
+
+.eyebrow,
+.data-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  color: var(--muted);
+}
+
+.data-label {
+  color: var(--muted);
+}
+
+.display-title {
+  max-width: 12ch;
+  font-size: clamp(2.8rem, 7vw, 5.75rem);
+  font-weight: 850;
+  letter-spacing: -0.075em;
+  line-height: 0.92;
+}
+
+.surface,
+.surface-dark {
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  box-shadow: 0 12px 28px rgba(21, 22, 18, 0.08);
+}
+
+.surface {
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+}
+
+.surface-dark {
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: 0 12px 0 rgba(21, 22, 18, 0.18);
+}
+
 .brutal-panel {
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper-raised) 94%, transparent);
-  box-shadow: 5px 5px 0 var(--line);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgba(21, 22, 18, 0.08);
 }
 
 .brutal-dark {
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
   background: var(--ink);
-  color: var(--paper);
-  box-shadow: 5px 5px 0 var(--line);
+  color: var(--surface);
+  box-shadow: 0 12px 0 rgba(21, 22, 18, 0.18);
 }
 
-.brutal-button {
+.brutal-button,
+.button-primary,
+.button-secondary {
   min-height: 44px;
-  border: 1px solid var(--line);
-  background: var(--acid);
-  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  box-shadow: 3px 3px 0 var(--line);
+  letter-spacing: 0.01em;
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
-.brutal-button:hover {
-  transform: translate(1px, 1px);
-  box-shadow: 2px 2px 0 var(--line);
+.brutal-button,
+.button-primary {
+  background: var(--acid);
+  color: var(--ink);
 }
 
-.brutal-button:focus-visible {
+.button-secondary {
+  background: var(--surface-strong);
+  color: var(--ink);
+}
+
+.brutal-button:hover,
+.button-primary:hover,
+.button-secondary:hover {
+  transform: translateY(-1px);
+}
+
+.brutal-button:focus-visible,
+.button-primary:focus-visible,
+.button-secondary:focus-visible,
+.brutal-input:focus-visible,
+.locale-switch button:focus-visible {
   outline: 3px solid var(--signal);
   outline-offset: 3px;
 }
 
 .brutal-input {
   min-height: 48px;
-  border: 1px solid var(--line);
-  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface-strong);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 0.95rem;
 }
 
-.brutal-input:focus {
-  outline: 3px solid var(--acid);
-  outline-offset: 2px;
+.locale-switch {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+.locale-switch button {
+  min-width: 38px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.locale-switch button + button {
+  border-left: 1px solid var(--line);
+}
+
+.locale-switch button.is-active {
+  background: var(--ink);
+  color: var(--acid);
 }
 
 .status-dot {
   display: inline-block;
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--line);
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
   background: var(--acid);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metric-card {
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid rgba(251, 250, 246, 0.22);
+  background: rgba(251, 250, 246, 0.04);
+}
+
+.metric-value {
+  margin-top: 14px;
+  font-size: 1.8rem;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+}
+
+.quiet-link {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 @media (prefers-reduced-motion: reduce) {
