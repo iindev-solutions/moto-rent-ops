@@ -35,7 +35,7 @@ function onScan(value: string) {
     <header class="border-b border-[var(--line)] bg-[var(--paper)]/95">
       <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <NuxtLink to="/" class="font-mono text-sm font-black tracking-[0.18em]">
-          BOOK<span class="text-[var(--signal)]">/</span>MOTO
+          MOTO<span class="text-[var(--signal)]">//</span>OPS
         </NuxtLink>
         <div class="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.14em]">
           <span class="status-dot" aria-hidden="true" />

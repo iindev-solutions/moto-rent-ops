@@ -1,18 +1,39 @@
-import 'dotenv/config'
+import { config } from 'dotenv'
+import { fileURLToPath } from 'node:url'
+import { and, eq } from 'drizzle-orm'
+import { hash } from 'argon2'
 import { randomUUID } from 'node:crypto'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { Pool } from 'pg'
 import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
+import { closeDb, getDb } from './client'
 import { encryptLocatorToken, hashLocatorToken } from './crypto'
-import { motorcycles, qrIdentities, qrPayloads } from './schema'
+import { motorcycles, qrIdentities, qrPayloads, users } from './schema'
 
-const connectionString = process.env.DATABASE_URL
-if (!connectionString) {
-  throw new Error('DATABASE_URL is required')
+config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) })
+
+const db = await getDb()
+
+const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase()
+const adminPassword = process.env.SEED_ADMIN_PASSWORD
+if (!adminEmail || !adminPassword) {
+  throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required')
 }
+const adminPasswordHash = await hash(adminPassword)
 
-const pool = new Pool({ connectionString })
-const db = drizzle(pool)
+await db.insert(users).values({
+  email: adminEmail,
+  name: 'System Owner',
+  passwordHash: adminPasswordHash,
+  role: 'owner',
+  locationScope: ['*'],
+}).onConflictDoUpdate({
+  target: users.email,
+  set: {
+    passwordHash: adminPasswordHash,
+    active: true,
+    role: 'owner',
+    locationScope: ['*'],
+  },
+})
 
 const fixtures = [
   { assetCode: 'BM-001', model: 'Honda CB500F', plate: '59-B1 001', status: 'available', location: 'Hanoi Hub', nextAction: 'Print QR label' },
@@ -21,13 +42,27 @@ const fixtures = [
 ]
 
 for (const fixture of fixtures) {
-  const [bike] = await db.insert(motorcycles).values(fixture).onConflictDoNothing().returning()
+  let [bike] = await db.select().from(motorcycles).where(eq(motorcycles.assetCode, fixture.assetCode)).limit(1)
   if (!bike) {
-    continue
+    ;[bike] = await db.insert(motorcycles).values(fixture).returning()
+  }
+  if (!bike) {
+    throw new Error(`Could not create motorcycle ${fixture.assetCode}`)
   }
 
-  const [identity] = await db.insert(qrIdentities).values({ motorcycleId: bike.id }).returning()
+  let [identity] = await db.select().from(qrIdentities).where(eq(qrIdentities.motorcycleId, bike.id)).limit(1)
   if (!identity) {
+    ;[identity] = await db.insert(qrIdentities).values({ motorcycleId: bike.id }).returning()
+  }
+  if (!identity) {
+    throw new Error(`Could not create QR identity for ${fixture.assetCode}`)
+  }
+
+  const [activePayload] = await db.select({ id: qrPayloads.id }).from(qrPayloads).where(and(
+    eq(qrPayloads.identityId, identity.id),
+    eq(qrPayloads.status, 'active'),
+  )).limit(1)
+  if (activePayload) {
     continue
   }
 
@@ -43,5 +78,5 @@ for (const fixture of fixtures) {
   })
 }
 
-await pool.end()
+await closeDb()
 console.log(`Seeded ${fixtures.length} motorcycle fixtures`)

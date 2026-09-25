@@ -9,11 +9,13 @@
   },
   "scripts": {
     "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate",
+    "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@book-moto/domain": "*",
+    "@electric-sql/pglite": "^0.5.8",
+    "argon2": "^0.45.1",
     "dotenv": "16.6.1",
     "drizzle-orm": "0.45.3",
     "pg": "8.23.0"

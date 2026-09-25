@@ -1,5 +1,5 @@
 import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
-import { createCipheriv, createHash, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 
 function encryptionKey() {
   const encoded = process.env.TOKEN_ENCRYPTION_KEY
@@ -35,4 +35,19 @@ export function encryptLocatorToken(token: string) {
   const ciphertext = Buffer.concat([cipher.update(canonicalToken, 'utf8'), cipher.final()])
   const tag = cipher.getAuthTag()
   return [iv, tag, ciphertext].map(value => value.toString('base64url')).join('.')
+}
+
+export function decryptLocatorToken(value: string) {
+  const [encodedIv, encodedTag, encodedCiphertext] = value.split('.')
+  if (!encodedIv || !encodedTag || !encodedCiphertext) {
+    throw new Error('Invalid encrypted locator token')
+  }
+
+  const decipher = createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(encodedIv, 'base64url'))
+  decipher.setAuthTag(Buffer.from(encodedTag, 'base64url'))
+  const plaintext = Buffer.concat([
+    decipher.update(Buffer.from(encodedCiphertext, 'base64url')),
+    decipher.final(),
+  ]).toString('utf8')
+  return canonicalizeLocatorToken(plaintext)
 }

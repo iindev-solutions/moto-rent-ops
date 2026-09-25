@@ -1,4 +1,19 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: varchar('email', { length: 320 }).notNull(),
+  name: varchar('name', { length: 120 }).notNull(),
+  passwordHash: text('password_hash').notNull(),
+  role: varchar('role', { length: 32 }).notNull().default('operator'),
+  locationScope: jsonb('location_scope').$type<string[]>().notNull().default(['*']),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('users_email_uidx').on(table.email),
+  index('users_active_idx').on(table.active),
+])
 
 export const motorcycles = pgTable('motorcycles', {
   id: uuid('id').defaultRandom().primaryKey(),

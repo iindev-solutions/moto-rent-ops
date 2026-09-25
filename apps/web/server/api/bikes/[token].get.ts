@@ -2,9 +2,11 @@ import { and, eq } from 'drizzle-orm'
 import { getDb, qrIdentities, qrPayloads, motorcycles } from '@book-moto/db'
 import { hashLocatorToken } from '@book-moto/db/crypto'
 import { normalizeLocatorToken } from '@book-moto/domain/qr'
+import { canAccessLocation, requireAppUser } from '../../../server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
+  const user = await requireAppUser(event)
 
   const rawToken = getRouterParam(event, 'token')
   const token = rawToken ? normalizeLocatorToken(rawToken) : null
@@ -14,7 +16,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const db = getDb()
+    const db = await getDb()
     const [row] = await db
       .select({
         id: motorcycles.id,
@@ -34,7 +36,7 @@ export default defineEventHandler(async (event) => {
       ))
       .limit(1)
 
-    if (!row) {
+    if (!row || !canAccessLocation(user, row.location)) {
       throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
     }
 

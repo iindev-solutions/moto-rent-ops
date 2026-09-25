@@ -1,7 +1,14 @@
+import { config } from 'dotenv'
+import { fileURLToPath } from 'node:url'
+
+if (process.env.NODE_ENV !== 'production') {
+  config({ path: fileURLToPath(new URL('../../.env', import.meta.url)) })
+}
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@nuxt/ui', '@pinia/nuxt', '@vite-pwa/nuxt'],
+  modules: ['@nuxt/ui', '@pinia/nuxt', '@vite-pwa/nuxt', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
   ssr: false,
   typescript: {
@@ -19,13 +26,13 @@ export default defineNuxtConfig({
     s3AccessKeyId: process.env.S3_ACCESS_KEY_ID,
     s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
     public: {
-      appName: 'Book Moto',
+      appName: 'MOTO//OPS',
       appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',
     },
   },
   app: {
     head: {
-      title: 'Book Moto — Rental Operations',
+      title: 'MOTO//OPS — Rental Operations',
       meta: [
         { name: 'description', content: 'Motorcycle rental operations, fleet and finance control.' },
         { name: 'theme-color', content: '#10100f' },
@@ -39,17 +46,24 @@ export default defineNuxtConfig({
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
-      name: 'Book Moto Operations',
-      short_name: 'Book Moto',
+      name: 'MOTO//OPS Operations',
+      short_name: 'MOTO//OPS',
       description: 'Motorcycle rental operations',
+      lang: 'ru',
       theme_color: '#10100f',
       background_color: '#10100f',
       display: 'standalone',
       start_url: '/',
       icons: [
-        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
+    workbox: {
+      globPatterns: ['**/*.{js,css,html,svg,png,ico,webp}'],
+      navigateFallback: '/',
+      cleanupOutdatedCaches: true,
+     },
   },
 })

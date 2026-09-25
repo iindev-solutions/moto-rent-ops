@@ -1,4 +1,4 @@
-# Book Moto
+# MOTO//OPS
 
 Production-first motorcycle rental operations PWA.
 
@@ -6,21 +6,20 @@ Production-first motorcycle rental operations PWA.
 
 - Nuxt 4 + Vue 3 + Nitro
 - Nuxt UI + Tailwind CSS
-- PostgreSQL + Drizzle ORM
-- S3-compatible private storage (MinIO locally, VNPT/S3 in production)
+- PostgreSQL + Drizzle ORM (PGlite in development, managed PostgreSQL in production)
+- S3-compatible storage (local filesystem adapter in development, VNPT/S3 in production)
 - PostgreSQL-backed worker/outbox
 - `zxing-wasm` scanner fallback with native `BarcodeDetector` enhancement
 
 ## Local development
 
-1. Copy `.env.example` to `.env` and set a 32-byte base64 `TOKEN_ENCRYPTION_KEY`.
-2. Start infrastructure: `docker compose up -d`.
-3. Install dependencies: `npm install`.
-4. Generate/apply migrations: `npm run db:generate && npm run db:migrate`.
-5. Seed local development records: `npm run db:seed`.
-6. Start Nuxt: `npm run dev`.
+1. Copy `.env.example` to `.env` and set a 32-byte base64 `TOKEN_ENCRYPTION_KEY` and a 32+ character `NUXT_SESSION_PASSWORD`.
+2. Install dependencies: `npm install`.
+3. Apply the same SQL migrations to PGlite: `npm run db:generate && npm run db:migrate`.
+4. Seed local users and fleet records: `npm run db:seed`.
+5. Start Nuxt: `npm run dev`.
 
-The local environment uses the same application code, migrations, adapters and acceptance flows as production. There is no separate demo application or runtime mode.
+PGlite persists to `.data/pglite`; the local filesystem storage adapter uses `.data/documents`. Docker is optional and is not required for the default development path. Production uses managed PostgreSQL and VNPT/S3 through the same interfaces.
 
 ## Product invariants
 
@@ -30,6 +29,6 @@ The local environment uses the same application code, migrations, adapters and a
 - Business rules and SQL do not depend on Nuxt components or route handlers.
 - Financial state is derived from immutable facts; there is no `paid` boolean.
 - Worker/outbox is a separate process.
-- Passport files require private storage, explicit authorization and audit.
+- Passport scans are not stored. A physical document is represented by custody events and masked metadata only; cash deposits use the 2M/5M VND options.
 
 See `ROADMAP.md` for the phased delivery plan.

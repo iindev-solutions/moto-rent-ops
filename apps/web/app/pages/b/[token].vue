@@ -2,10 +2,11 @@
 import type { BikeSummary } from '@book-moto/contracts'
 import { normalizeLocatorToken } from '@book-moto/domain/qr'
 
+definePageMeta({ middleware: 'auth' })
+
 const route = useRoute()
 const token = computed(() => normalizeLocatorToken(String(route.params.token || '')) || '')
 const { data: bike, error, status } = await useFetch<BikeSummary>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
-  key: () => `bike-${token.value}`,
   retry: 0,
 })
 
@@ -26,7 +27,7 @@ const statusLabel = computed(() => statusLabels[bike.value?.status || ''] || bik
   <div class="min-h-screen text-[var(--ink)]">
     <header class="border-b border-[var(--line)] bg-[var(--paper)]/95">
       <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <NuxtLink to="/" class="font-mono text-sm font-black tracking-[0.18em]">BOOK<span class="text-[var(--signal)]">/</span>MOTO</NuxtLink>
+        <NuxtLink to="/" class="font-mono text-sm font-black tracking-[0.18em]">MOTO<span class="text-[var(--signal)]">//</span>OPS</NuxtLink>
         <span class="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">Bike / {{ token || '—' }}</span>
       </div>
     </header>

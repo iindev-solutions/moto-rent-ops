@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { readBarcodes } from 'zxing-wasm/reader'
+import type { ReaderOptions } from 'zxing-wasm/reader'
 
 const emit = defineEmits<{
   close: []
@@ -11,9 +11,13 @@ type BrowserBarcodeDetector = {
 }
 
 type BrowserBarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BrowserBarcodeDetector
+type WasmDecoder = (image: ImageData, options: ReaderOptions) => Promise<Array<{ text: string }>>
 
 const video = ref<HTMLVideoElement | null>(null)
 let canvas: HTMLCanvasElement | undefined
+let nativeDetector: BrowserBarcodeDetector | null = null
+let wasmDecoder: WasmDecoder | undefined
+let lastScanAt = 0
 const active = ref(false)
 const busy = ref(false)
 const message = ref('Камера не запущена.')
@@ -40,7 +44,16 @@ async function startCamera() {
 
     video.value.srcObject = stream
     await video.value.play()
+
+    const Detector = (window as Window & { BarcodeDetector?: BrowserBarcodeDetectorConstructor }).BarcodeDetector
+    nativeDetector = Detector ? new Detector({ formats: ['qr_code'] }) : null
+    if (!nativeDetector && !wasmDecoder) {
+      const decoderModule = await import('zxing-wasm/reader')
+      wasmDecoder = decoderModule.readBarcodes
+    }
+
     active.value = true
+    lastScanAt = 0
     message.value = 'Наведите камеру на QR-метку.'
     animationFrame = requestAnimationFrame(scanFrame)
   } catch {
@@ -51,16 +64,18 @@ async function startCamera() {
   }
 }
 
-async function scanFrame() {
+async function scanFrame(timestamp = performance.now()) {
   if (!active.value || !video.value) {
     return
   }
 
+  if (timestamp - lastScanAt < 200) {
+    animationFrame = requestAnimationFrame(scanFrame)
+    return
+  }
+  lastScanAt = timestamp
+
   try {
-    const Detector = (window as Window & { BarcodeDetector?: BrowserBarcodeDetectorConstructor }).BarcodeDetector
-    const nativeDetector = Detector
-      ? new Detector({ formats: ['qr_code'] })
-      : null
     const value = nativeDetector
       ? (await nativeDetector.detect(video.value))[0]?.rawValue
       : await readVideoWithWasm(video.value)
@@ -78,17 +93,22 @@ async function scanFrame() {
 }
 
 async function readVideoWithWasm(source: HTMLVideoElement) {
+  if (!wasmDecoder) {
+    return undefined
+  }
+
   const frameCanvas = canvas ?? document.createElement('canvas')
   canvas = frameCanvas
-  frameCanvas.width = source.videoWidth
-  frameCanvas.height = source.videoHeight
+  const scale = Math.min(1, 640 / Math.max(source.videoWidth, 1))
+  frameCanvas.width = Math.max(1, Math.round(source.videoWidth * scale))
+  frameCanvas.height = Math.max(1, Math.round(source.videoHeight * scale))
   const context = frameCanvas.getContext('2d', { willReadFrequently: true })
   if (!context) {
     return undefined
   }
 
-  context.drawImage(source, 0, 0)
-  const results = await readBarcodes(context.getImageData(0, 0, frameCanvas.width, frameCanvas.height), {
+  context.drawImage(source, 0, 0, frameCanvas.width, frameCanvas.height)
+  const results = await wasmDecoder(context.getImageData(0, 0, frameCanvas.width, frameCanvas.height), {
     formats: ['QRCode'],
     maxNumberOfSymbols: 1,
     tryHarder: true,
@@ -101,6 +121,7 @@ function stopCamera() {
   cancelAnimationFrame(animationFrame)
   stream?.getTracks().forEach(track => track.stop())
   stream = undefined
+  nativeDetector = null
   active.value = false
   if (video.value) {
     video.value.srcObject = null

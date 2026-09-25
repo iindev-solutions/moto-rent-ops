@@ -17,13 +17,19 @@ export function isValidLocatorToken(value: string): boolean {
 }
 
 export function normalizeLocatorToken(value: string): string | null {
-  const directToken = canonicalizeLocatorToken(value)
+  const trimmed = value.trim()
+  const directToken = canonicalizeLocatorToken(trimmed)
   if (directToken) {
     return directToken
   }
 
+  const relativeMatch = trimmed.match(/^\/b\/([^/]+)$/)
+  if (relativeMatch?.[1]) {
+    return canonicalizeLocatorToken(relativeMatch[1])
+  }
+
   try {
-    const url = new URL(value.trim())
+    const url = new URL(trimmed)
     const match = url.pathname.match(/^\/b\/([^/]+)$/)
     return match?.[1] ? canonicalizeLocatorToken(match[1]) : null
   } catch {
