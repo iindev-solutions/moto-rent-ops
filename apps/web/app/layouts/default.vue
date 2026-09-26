@@ -9,7 +9,7 @@ const navGroups = [
     label: 'Workspace',
     items: [
       { label: 'Overview', icon: 'i-lucide-layout-dashboard', to: '/', enabled: true },
-      { label: 'Fleet', icon: 'i-lucide-bike', to: '/bikes', enabled: false },
+      { label: 'Fleet', icon: 'i-lucide-bike', to: '/bikes', enabled: true },
       { label: 'Rentals', icon: 'i-lucide-file-signature', to: '/rentals', enabled: false },
     ],
   },

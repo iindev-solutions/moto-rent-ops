@@ -8,7 +8,7 @@ const search = ref('')
 const manualCode = ref('')
 const scannerOpen = ref(false)
 const scannerError = ref('')
-const { data: dashboard } = await useFetch<DashboardData>('/api/dashboard')
+const { data: dashboard, error: dashboardError, refresh: refreshDashboard } = await useFetch<DashboardData>('/api/dashboard')
 
 const stats = computed(() => dashboard.value?.stats || { total: 0, available: 0, rented: 0, attention: 0 })
 const visibleBikes = computed(() => {
@@ -92,6 +92,7 @@ function onScan(value: string) {
         <p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.attentionHint') }}</p>
       </div>
     </section>
+    <div v-if="dashboardError" class="panel mb-4 border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]"><div class="flex flex-wrap items-center justify-between gap-3"><span>{{ t('common.error') }}</span><UButton class="button-secondary" variant="outline" @click="refreshDashboard()">{{ t('common.retry') }}</UButton></div></div>
 
     <section class="content-grid">
       <div class="panel overflow-hidden">
@@ -119,6 +120,7 @@ function onScan(value: string) {
         <div class="panel-header"><p class="panel-title">{{ t('dashboard.quickActions') }}</p><UIcon name="i-lucide-zap" class="size-4 text-[var(--accent)]" /></div>
         <div class="panel-body space-y-2">
           <button class="quick-action w-full" type="button" @click="scannerOpen = true"><UIcon name="i-lucide-scan-line" class="size-4" /><span>{{ t('home.scan') }}</span></button>
+          <NuxtLink to="/bikes" class="quick-action w-full"><UIcon name="i-lucide-bike" class="size-4" /><span>{{ t('fleet.title') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
           <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <UInput v-model="manualCode" class="brutal-input" :placeholder="t('home.placeholder')" :aria-label="t('home.lookup')" @keyup.enter="openManualLookup" />
             <UButton class="button-secondary" @click="openManualLookup">{{ t('home.open') }}</UButton>

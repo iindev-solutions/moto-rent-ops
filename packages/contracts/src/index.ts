@@ -31,3 +31,7 @@ export type DashboardData = {
   }
   recentBikes: BikeSummary[]
 }
+
+export type BikesResponse = {
+  bikes: BikeSummary[]
+}

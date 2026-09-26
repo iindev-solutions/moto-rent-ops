@@ -36,6 +36,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'MOTO//OPS — Rental Operations',
+      htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'description', content: 'Motorcycle rental operations, fleet and finance control.' },
         { name: 'theme-color', content: '#10100f' },
