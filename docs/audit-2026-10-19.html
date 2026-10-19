@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOTO//OPS — Технический аудит · 19.10.2026</title>
+<style>
+  :root{
+    --bg:#fafafa;
+    --ink:#141412;
+    --ink-soft:#4a4a46;
+    --ink-mute:#8a8a84;
+    --hair:#dededa;
+    --hair-soft:#e9e9e5;
+    --accent:#9a3412;
+    --accent-soft:#f4e8e2;
+    --paper:#ffffff;
+    --ok:#3f6212;
+    --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,"Liberation Mono",monospace;
+    --sans:"Segoe UI",-apple-system,"Helvetica Neue","Liberation Sans",Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sheet{
+    max-width:1080px;
+    margin:0 auto;
+    padding:56px 40px 80px;
+  }
+  /* ---------- kickers & meta ---------- */
+  .kicker{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:14px;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:28px;
+    padding:16px 0;
+    border-top:1px solid var(--hair);
+    border-bottom:1px solid var(--hair);
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    letter-spacing:0.02em;
+  }
+  .meta-row b{color:var(--ink);font-weight:600;}
+  /* ---------- headings ---------- */
+  h1{
+    font-size:44px;
+    line-height:1.08;
+    font-weight:600;
+    letter-spacing:-0.02em;
+    margin-bottom:18px;
+    max-width:760px;
+  }
+  h1 .thin{color:var(--ink-mute);font-weight:400;}
+  .lede{
+    font-size:17px;
+    line-height:1.55;
+    color:var(--ink-soft);
+    max-width:62ch;
+    margin-bottom:10px;
+  }
+  h2{
+    font-size:26px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    margin:0 0 6px;
+  }
+  h3{
+    font-size:16px;
+    font-weight:600;
+    margin:0 0 8px;
+  }
+  .section{margin-top:72px;}
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:16px;
+    border-bottom:1px solid var(--hair);
+    padding-bottom:14px;
+    margin-bottom:26px;
+  }
+  .section-num{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--accent);
+    letter-spacing:0.06em;
+  }
+  p{max-width:70ch;margin-bottom:12px;}
+  p.wide{max-width:none;}
+  .muted{color:var(--ink-mute);}
+  code{
+    font-family:var(--mono);
+    font-size:12.5px;
+    background:var(--paper);
+    border:1px solid var(--hair-soft);
+    padding:1px 5px;
+    border-radius:3px;
+    color:var(--ink);
+    word-break:break-all;
+  }
+  /* ---------- TOC ---------- */
+  .toc{
+    margin-top:56px;
+    border:1px solid var(--hair);
+    background:var(--paper);
+    padding:26px 30px;
+  }
+  .toc-title{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    margin-bottom:14px;
+  }
+  .toc ol{list-style:none;counter-reset:toc;}
+  .toc li{
+    counter-increment:toc;
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    padding:5px 0;
+    font-size:14px;
+  }
+  .toc li::before{
+    content:counter(toc,decimal-leading-zero);
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--accent);
+  }
+  .toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--hair);}
+  .toc a:hover{border-bottom-color:var(--accent);}
+  .toc .toc-note{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);}
+  /* ---------- verdict strip ---------- */
+  .verdict{
+    margin-top:26px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    border:1px solid var(--hair);
+    background:var(--paper);
+  }
+  .verdict-cell{
+    padding:20px 22px;
+    border-right:1px solid var(--hair-soft);
+  }
+  .verdict-cell:last-child{border-right:none;}
+  .verdict-num{
+    font-family:var(--mono);
+    font-size:30px;
+    font-weight:600;
+    letter-spacing:-0.02em;
+    line-height:1.1;
+  }
+  .verdict-num.crit{color:var(--accent);}
+  .verdict-label{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    margin-top:6px;
+  }
+  /* ---------- tables ---------- */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+    margin:18px 0 8px;
+  }
+  th{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.07em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+    font-weight:600;
+    text-align:left;
+    padding:8px 12px;
+    border-bottom:1px solid var(--hair);
+    vertical-align:bottom;
+  }
+  td{
+    padding:9px 12px;
+    border-bottom:1px solid var(--hair-soft);
+    vertical-align:top;
+    line-height:1.5;
+  }
+  tr:last-child td{border-bottom:1px solid var(--hair);}
+  td.num,th.num{font-family:var(--mono);font-size:12.5px;white-space:nowrap;}
+  .t-note{
+    font-size:12.5px;
+    color:var(--ink-mute);
+    max-width:none;
+  }
+  /* ---------- badges ---------- */
+  .badge{
+    display:inline-block;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    padding:2px 8px;
+    border:1px solid var(--hair);
+    color:var(--ink-soft);
+    background:var(--paper);
+    white-space:nowrap;
+  }
+  .badge.p0{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+  .badge.ok{border-color:#cdd8c2;color:var(--ok);background:#f2f6ec;}
+  /* ---------- finding cards ---------- */
+  .finding{
+    border:1px solid var(--hair);
+    background:var(--paper);
+    padding:24px 28px;
+    margin-bottom:16px;
+  }
+  .finding-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .finding-id{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-mute);
+  }
+  .finding p{margin-bottom:8px;}
+  .fix{
+    margin-top:12px;
+    padding:12px 16px;
+    border-left:2px solid var(--accent);
+    background:var(--bg);
+    font-size:13.5px;
+    max-width:none;
+  }
+  .fix b{font-family:var(--mono);font-size:10.5px;letter-spacing:0.07em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:4px;font-weight:600;}
+  /* ---------- phase bars ---------- */
+  .phase{margin-bottom:14px;}
+  .phase-row{
+    display:grid;
+    grid-template-columns:230px 1fr 52px;
+    gap:16px;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid var(--hair-soft);
+  }
+  .phase-name{font-size:14px;font-weight:600;}
+  .phase-name span{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);font-weight:400;letter-spacing:0.03em;margin-top:2px;}
+  .bar{
+    height:8px;
+    background:var(--hair-soft);
+    position:relative;
+  }
+  .bar i{
+    position:absolute;left:0;top:0;bottom:0;
+    background:var(--accent);
+  }
+  .bar i.done{background:#6b7f4e;}
+  .pct{font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-align:right;}
+  .phase-missing{
+    font-size:13px;
+    color:var(--ink-soft);
+    padding:6px 0 0 246px;
+    max-width:none;
+  }
+  .phase-missing b{font-family:var(--mono);font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-mute);font-weight:600;}
+  /* ---------- plan timeline ---------- */
+  .plan-step{
+    display:grid;
+    grid-template-columns:150px 1fr;
+    gap:24px;
+    padding:20px 0;
+    border-bottom:1px solid var(--hair-soft);
+  }
+  .plan-when{
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--accent);
+    padding-top:3px;
+  }
+  .plan-what h3{margin-bottom:6px;}
+  .plan-what p{margin-bottom:6px;font-size:14px;}
+  .plan-what ul{margin:4px 0 0 18px;font-size:14px;color:var(--ink-soft);}
+  .plan-what li{margin-bottom:4px;max-width:65ch;}
+  /* ---------- strengths grid ---------- */
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  .strength{
+    border:1px solid var(--hair);
+    background:var(--paper);
+    padding:18px 22px;
+  }
+  .strength h3{font-size:14px;}
+  .strength p{font-size:13.5px;color:var(--ink-soft);margin-bottom:0;max-width:none;}
+  /* ---------- colophon ---------- */
+  .colophon{
+    margin-top:80px;
+    border-top:1px solid var(--hair);
+    padding-top:18px;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+  }
+  @media (max-width:760px){
+    .sheet{padding:36px 20px 60px;}
+    h1{font-size:32px;}
+    .verdict{grid-template-columns:1fr 1fr;}
+    .verdict-cell{border-bottom:1px solid var(--hair-soft);}
+    .grid2{grid-template-columns:1fr;}
+    .phase-row{grid-template-columns:1fr;gap:8px;}
+    .phase-missing{padding-left:0;}
+    .plan-step{grid-template-columns:1fr;gap:8px;}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <!-- ======================= COVER ======================= -->
+  <header>
+    <div class="kicker">Технический аудит · Внутренний документ</div>
+    <h1>MOTO//OPS: состояние проекта, <span class="thin">что улучшить и что осталось</span></h1>
+    <p class="lede">Платформа операционного учёта аренды мотоциклов (Nuxt 4 · Nitro · PostgreSQL/Drizzle · PWA). Аудит охватывает серверный API, фронтенд, схему БД, финансовую логику, безопасность и соответствие собственному ROADMAP. Проверка кодовая — каждый вывод привязан к файлу.</p>
+    <div class="meta-row">
+      <span>Дата: <b>19.10.2026</b></span>
+      <span>Коммит: <b>cc11f3a</b> + незакоммиченный слой</span>
+      <span>Проверено: <b>47 API · 15 страниц · 21 таблица</b></span>
+      <span>Typecheck: <b>0 ошибок</b></span>
+    </div>
+    <div class="verdict">
+      <div class="verdict-cell">
+        <div class="verdict-num crit">4</div>
+        <div class="verdict-label">Критических · P0</div>
+      </div>
+      <div class="verdict-cell">
+        <div class="verdict-num">5</div>
+        <div class="verdict-label">Важных · P1</div>
+      </div>
+      <div class="verdict-cell">
+        <div class="verdict-num">11</div>
+        <div class="verdict-label">Долг · P2</div>
+      </div>
+      <div class="verdict-cell">
+        <div class="verdict-num">~58%</div>
+        <div class="verdict-label">R1 по ROADMAP</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================= TOC ======================= -->
+  <nav class="toc">
+    <div class="toc-title">Содержание</div>
+    <ol>
+      <li><a href="#s1">Вердикт</a><span class="toc-note">1 мин</span></li>
+      <li><a href="#s2">Что уже сделано хорошо</a><span class="toc-note">фундамент крепкий</span></li>
+      <li><a href="#s3">Критические находки — P0</a><span class="toc-note">чинить сегодня</span></li>
+      <li><a href="#s4">Важные проблемы — P1</a><span class="toc-note">эта неделя</span></li>
+      <li><a href="#s5">Технический долг — P2</a><span class="toc-note">по итерациям</span></li>
+      <li><a href="#s6">Прогресс по ROADMAP</a><span class="toc-note">фаза за фазой</span></li>
+      <li><a href="#s7">План действий</a><span class="toc-note">3 горизонта</span></li>
+    </ol>
+  </nav>
+
+  <!-- ======================= 01 VERDICT ======================= -->
+  <section class="section" id="s1">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2>Вердикт</h2>
+    </div>
+    <p>Проект архитектурно зрелый для своей стадии: доменная модель денег честная (без ручных <code>paid</code>-флагов), ключевые операции обёрнуты в транзакции с блокировками, аудит-лог ведётся везде, авторизация продумана. Спек «Быстрая выдача и возврат» от 19.10 полностью реализован на уровне кода, typecheck строгий проходит без ошибок.</p>
+    <p>Но есть четыре критических проблемы. Первая — организационная: <b>весь слой работы после 26 сентября не закоммичен и не запушен</b> — быстрый цикл аренды, финансы, люди, инциденты, ТО, 8 миграций существуют только в рабочей директории. Остальные три — финансовая гонка аллокаций, отсутствие S3-адаптера при заявленном в README production-профиле и риск показать чужой депозит в расчёте возврата. Ни одна из них не рушит существующую функциональность, но все три блокируют выпустить систему в прод и доверять деньгам при конкурентной работе двух сотрудников.</p>
+    <p class="muted">Вторая системная дыра — качество: в репозитории ноль тестов, ноль CI, ноль линтеров. Критерии приёмки собственного спека (e2e-сценарий «выдача → расчёт → оплата → закрытие») не подтверждены прогоном — только typecheck'ом.</p>
+  </section>
+
+  <!-- ======================= 02 STRENGTHS ======================= -->
+  <section class="section" id="s2">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2>Что уже сделано хорошо</h2>
+    </div>
+    <p>Это то, что <b>не надо переделывать</b> — фундамент соответствует непереговорным правилам из ROADMAP.</p>
+    <div class="grid2">
+      <div class="strength">
+        <h3>Честная финансовая модель</h3>
+        <p>Цепочка <code>obligations → receipts → allocations</code> без булевых флагов оплаты. Статусы (<code>settled / partially_allocated / overdue</code>) вычисляются на лету в <code>finance/index.get.ts</code>. Суммы в minor units (bigint), проверка совпадения валют при аллокации и применении депозита. Инвариант №7 соблюдён.</p>
+      </div>
+      <div class="strength">
+        <h3>Транзакции с блокировками</h3>
+        <p><code>for('update')</code> на строках байка/аренды/депозита в <code>quick.post.ts</code>, <code>return.post.ts</code>, <code>extend.post.ts</code>, <code>close.post.ts</code>, <code>deposits/[id]/*.ts</code>. Параллельная выдача одного байка дважды физически невозможна — второй запрос получит 409. Проверка пересечения дат аренды включена.</p>
+      </div>
+      <div class="strength">
+        <h3>Идемпотентность платежей</h3>
+        <p><code>receipts/index.post.ts</code>: заголовок <code>idempotency-key</code> + SHA-256-хеш тела, ответ кэшируется в <code>idempotency_records</code>, конфликт 23505 обрабатывается. Повторный submit не создаёт второй платёж. Инвариант «нет двойной проводки» выполнен для receipts.</p>
+      </div>
+      <div class="strength">
+        <h3>QR-контракт по правилам</h3>
+        <p><code>qr_payloads</code>: token-hash + шифротекст сырого токена (reprint возможен), partial unique index на активный payload, ротация и отзыв с причинами. QR не несёт PII. Deep link и сканер используют один маршрут <code>/b/{token}</code>.</p>
+      </div>
+      <div class="strength">
+        <h3>Аудит повсюду</h3>
+        <p><code>audit_events</code> пишутся во всех значимых операциях: выдача, возврат, продление, закрытие, платежи, депозиты, вложения, ротация QR — с актёром, сущностью, локацией и metadata.</p>
+      </div>
+      <div class="strength">
+        <h3>Аккуратная авторизация</h3>
+        <p>Argon2-хэши, rate limit на логин (10 попыток / 10 мин на email+IP), санитизация <code>returnTo</code> (только внутренние пути, защита от open redirect), скоупы локаций проверяются в большинстве эндпоинтов, <code>ssr:false</code> + <code>no-store</code> — PII не оседает в HTML и кэшах.</p>
+      </div>
+      <div class="strength">
+        <h3>Защищённые вложения</h3>
+        <p>Whitelist контент-типов (JPEG/PNG/WebP), лимит 8 МБ, лимиты на сущность, проверка скоупа локации перед загрузкой и перед выдачей файла, ключи <code>{entityType}/{entityId}/{uuid}.{ext}</code> без user-input в пути.</p>
+      </div>
+      <div class="strength">
+        <h3>Паспорт как физический залог</h3>
+        <p><code>document_custodies</code>: только маскированный номер, статусы held/returned, кто принял/вернул. Сканов и файлов паспорта в системе нет — ровно как требует ROADMAP. Возврат депозита каскадно возвращает custody.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= 03 P0 ======================= -->
+  <section class="section" id="s3">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2>Критические находки — P0</h2>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">P0-1</span>
+        <h3>Три недели работы не закоммичены и не запушены</h3>
+        <span class="badge p0">риск потери</span>
+      </div>
+      <p>Последний коммит <code>cc11f3a</code> от 26.09. Всё, что сделано после — быстрый цикл аренды (<code>/rent</code>, <code>/return</code>), финансовые API, люди, договоры, инциденты, ТО, 8 миграций БД, 15 новых страниц — висит в <code>git status</code> как изменённые и untracked-файлы. <code>master</code> и <code>origin/master</code> идентичны (0 ahead), то есть бэкапа этой работы не существует нигде, кроме рабочего диска.</p>
+      <div class="fix"><b>Исправление</b>Заккомитить слоями (db-schema → api → ui) и запушить. Пять минут работы против риска потерять три недели.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">P0-2</span>
+        <h3>Гонка аллокаций: можно распределить больше, чем есть обязательство</h3>
+        <span class="badge p0">финансовый инвариант</span>
+      </div>
+      <p>В <code>receipts/index.post.ts</code> и <code>deposits/[id]/apply.post.ts</code> суммы уже распределённых аллокаций читаются <b>без блокировки</b> строк <code>obligations</code>. Два сотрудника, параллельно регистрирующие платежи по одному обязательству (например, клиент платит наличными в офисе и депозит применяется одновременно), оба прочитают одинаковый остаток, оба пройдут проверку <code>requested &gt; remaining</code> и оба запишут аллокацию — сумма распределений превысит сумму обязательства. Нарушается инвариант №7 «поступление нельзя распределить больше его остатка». Депозит при этом блокируется (<code>for('update')</code> по депозиту), но obligations — нет.</p>
+      <div class="fix"><b>Исправление</b>В обеих ручках добавить <code>.for('update')</code> к select'у по <code>obligations</code> (и к существующим аллокациям, либо опираться на блокировку obligation-строки как точки сериализации). Дополнительно — DB-констрейнт: trigger или CHECK-логика через constraint-таблицу, чтобы инвариант держался даже при ошибке в коде.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">P0-3</span>
+        <h3>S3-адаптер не существует, хотя README его обещает</h3>
+        <span class="badge p0">блокер прода</span>
+      </div>
+      <p><code>server/utils/objects.ts</code> безусловно возвращает <code>LocalObjectStorage</code>. Переменные <code>S3_ENDPOINT / S3_REGION / S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY</code> объявлены в <code>.env.example</code> и <code>runtimeConfig</code>, но <b>никем не читаются</b> — интерфейс <code>ObjectStorage</code> есть, реализации под S3 нет. README и ROADMAP заявляют «VNPT/S3 in production». При текущем коде прод-инсталляция будет писать вложения в локальную файловую систему сервера — потеря файлов при редеплое.</p>
+      <div class="fix"><b>Исправление</b>Реализовать <code>S3ObjectStorage</code> (aws4fetch или @aws-sdk/client-s3) с выбором адаптера по <code>DATABASE_PROVIDER</code>/S3-env, по аналогии с переключателем PGlite/PostgreSQL в <code>packages/db/src/client.ts</code>. До реализации — честно пометить в README, что storage = local-only.</div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-head">
+        <span class="finding-id">P0-4</span>
+        <h3>Расчёт возврата может показать чужой депозит</h3>
+        <span class="badge p0">деньги</span>
+      </div>
+      <p>В <code>rentals/items/[id]/settlement.get.ts</code> выборка депозитов идёт с условием <code>or(eq(agreementId), isNull(agreementId))</code> по всем депозитам клиента, а дальше fallback-цепочка <code>find(status === 'held')</code> может выбрать депозит, не привязанный к этому договору — например, залог от прошлой аренды, который ещё не возвращён. Оператор на экране возврата увидит не тот остаток залога и может вернуть лишние деньги. Группировка «депозит без agreementId вообще в выборку» — тоже спорное решение: такие записи не должны кандидоваться.</p>
+      <div class="fix"><b>Исправление</b>Ограничить выборку строго <code>eq(deposits.agreementId, agreement.id)</code>; fallback на «последний held-депозит клиента» убрать или сделать явным отдельным полем с предупреждением в UI. Покрыть тестом: клиент с двумя последовательными арендами и двумя депозитами.</div>
+    </div>
+  </section>
+
+  <!-- ======================= 04 P1 ======================= -->
+  <section class="section" id="s4">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2>Важные проблемы — P1</h2>
+    </div>
+    <table>
+      <thead>
+        <tr><th style="width:64px">ID</th><th style="width:280px">Проблема</th><th>Детали и решение</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">P1-1</td>
+          <td><b>Тестов ноль</b></td>
+          <td>Ни одного <code>*.test.ts</code>; vitest/playwright отсутствуют в зависимостях. Критерии приёмки спека от 19.10 (e2e: quick → settlement → receipt/apply → deposit return → close; extend с пересчётом; негативные 409/404) не подтверждены. Решение: vitest + API-тесты против dev-сервера (PGlite), сценарий приёмки спека как первый smoke-набор.</td>
+        </tr>
+        <tr>
+          <td class="num">P1-2</td>
+          <td><b>Нет CI и линтеров</b></td>
+          <td>Нет <code>.github/workflows</code>, eslint/prettier/biome не настроены. Решение: минимальный GitHub Actions — install → typecheck → tests; eslint с @nuxt/eslint позже.</td>
+        </tr>
+        <tr>
+          <td class="num">P1-3</td>
+          <td><b>Нет security headers</b></td>
+          <td>ROADMAP требует <code>Permissions-Policy: camera=(self)</code>, актуальный конфиг Nuxt не отдаёт CSP, X-Frame-Options, Referrer-Policy. Для PWA со сканером и деньгами — обязательно. Решение: nitro routeRules headers для <code>/**</code>.</td>
+        </tr>
+        <tr>
+          <td class="num">P1-4</td>
+          <td><b>Продление молча переписывает сумму обязательства</b></td>
+          <td><code>extend.post.ts</code> обновляет <code>amountMinor</code> существующей rent-obligation (<code>Math.max(newAmount, allocated)</code> — аккуратно, но это тихая мутация). Дух инварианта №8 — факты не редактируются, а дополняются. Решение: создавать obligation типа <code>rent_extension</code> на дельту; старую оставить как есть.</td>
+        </tr>
+        <tr>
+          <td class="num">P1-5</td>
+          <td><b>obligations.status — мёртвый столбец</b></td>
+          <td>Денежные потоки никогда не обновляют <code>status</code> — он вечно <code>planned</code>; реальный статус вычисляется на лету в finance API. Два источника правды: столбец врёт, вычисление честно. Решение: убрать столбец (статус — проекция) или пересчитывать в той же транзакции, что и аллокация. Убрать чище.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ======================= 05 P2 ======================= -->
+  <section class="section" id="s5">
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2>Технический долг — P2</h2>
+    </div>
+    <table>
+      <thead>
+        <tr><th style="width:64px">ID</th><th style="width:300px">Пункт</th><th>Комментарий</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">P2-1</td><td><b>documents.vue — заглушка</b></td><td>Только список custody + кнопка «вернуть». Нет сроков действия документов и предупреждений об истечении (Phase 3 ROADMAP).</td></tr>
+        <tr><td class="num">P2-2</td><td><b>Нет истории локаций</b></td><td><code>motorcycles.location</code> — мутируемый varchar. ROADMAP требует append-only <code>location_assignment</code>. Сейчас перемещения не отслеживаются.</td></tr>
+        <tr><td class="num">P2-3</td><td><b>useLocale.ts — монолит 32 КБ</b></td><td>Все локали (en/vi) одним файлом. Разбить на <code>locales/en.json</code>, <code>locales/vi.json</code> + тонкий composable.</td></tr>
+        <tr><td class="num">P2-4</td><td><b>Нет пагинации списков</b></td><td>bikes / people / incidents / maintenance отдают всё. При 10–50 байках терпимо, но people будет расти.</td></tr>
+        <tr><td class="num">P2-5</td><td><b>Мусорные директории</b></td><td><code>apps/web/127.0.0.1/</code> и <code>apps/web/3000/</code> (артефакты dev-сервера с неправильным cwd, по ~0.7 МБ node_modules) — удалить, добавить в .gitignore.</td></tr>
+        <tr><td class="num">P2-6</td><td><b>Нет версий договора</b></td><td>Поле <code>version</code> в rental_agreements есть, таблицы immutable версий нет (Phase 3).</td></tr>
+        <tr><td class="num">P2-7</td><td><b>Нет аудита чтения PII</b></td><td>ROADMAP: доступ к маскированным реквизитам документов должен аудироваться. Сейчас чтение custody в settlement/people — без audit_events.</td></tr>
+        <tr><td class="num">P2-8</td><td><b>Rate limit в памяти</b></td><td><code>login.post.ts</code> хранит попытки в Map — не переживает рестарт и не работает при нескольких инстансах. Для одного инстанса терпимо, пометить как известное ограничение.</td></tr>
+        <tr><td class="num">P2-9</td><td><b>MinIO healthcheck сломан</b></td><td><code>docker-compose.yml</code>: <code>mc ready local</code> без сконфигурированного alias всегда падает. Исправить на <code>curl -f http://localhost:9000/minio/health/ready</code>.</td></tr>
+        <tr><td class="num">P2-10</td><td><b>Нет DB-констрейнтов финансов</b></td><td>Все инварианты (аллокация ≤ суммы, баланс) — только в коде. ROADMAP явно требует SQL-констрейнты как второй рубеж.</td></tr>
+        <tr><td class="num">P2-11</td><td><b>Нет batch-печати QR</b></td><td>Только единичная <code>qr.svg.get.ts</code>. Пакетная печать меток на наклейки — в Phase 2 ROADMAP.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ======================= 06 ROADMAP ======================= -->
+  <section class="section" id="s6">
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2>Прогресс по ROADMAP</h2>
+    </div>
+    <p>Оценка по фазам собственного ROADMAP проекта (не по календарю, а по результатам фаз).</p>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-name">Фаза 1 · Защищённый фундамент<span>auth · sessions · audit · storage</span></div>
+        <div class="bar"><i class="done" style="width:85%"></i></div>
+        <div class="pct">85%</div>
+      </div>
+      <div class="phase-missing"><b>Не хватает:</b> security headers, RBAC-матрица (сейчас роли owner/admin/operator без гранулярности), CI.</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-name">Фаза 2 · Fleet + QR<span>реестр · метки · сканер · deep link</span></div>
+        <div class="bar"><i class="done" style="width:85%"></i></div>
+        <div class="pct">85%</div>
+      </div>
+      <div class="phase-missing"><b>Не хватает:</b> batch-печать меток, offline-кэш карточки (IndexedDB), проверка на реальных устройствах ещё не фиксировалась.</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-name">Фаза 3 · Люди, договоры, документы<span>crm · custody · версии</span></div>
+        <div class="bar"><i class="done" style="width:60%"></i></div>
+        <div class="pct">60%</div>
+      </div>
+      <div class="phase-missing"><b>Не хватает:</b> сроки действия документов и предупреждения, immutable-версии договора, аудит чтения PII. Клиенты, контакты, custody, маскированные номера — есть.</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-name">Фаза 4 · Финансы и полный цикл<span>обязательства · депозиты · закрытие</span></div>
+        <div class="bar"><i class="done" style="width:70%"></i></div>
+        <div class="pct">70%</div>
+      </div>
+      <div class="phase-missing"><b>Не хватает:</b> balanced financial journal (двойная запись), фикс гонки аллокаций (P0-2), DB-констрейнты, конкурентные распределения не тестировались. Полный цикл «выдача → оплата → депозит → закрытие» в коде есть, включая продление.</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-name">Фаза 5 · Операции и уведомления<span>дашборд · Telegram · offline</span></div>
+        <div class="bar"><i style="width:25%"></i></div>
+        <div class="pct">25%</div>
+      </div>
+      <div class="phase-missing"><b>Есть:</b> дашборд с очередями (возвраты, выдачи, «сейчас на байках»), инциденты, ТО. <b>Не хватает:</b> notifications/Telegram, transactional outbox, worker-процесс, offline-кэш PWA, массовые операции.</div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-row">
+        <div class="phase-name">Фаза 6 · Миграция и hardening<span>импорт · бэкапы · пилот</span></div>
+        <div class="bar"><i style="width:5%"></i></div>
+        <div class="pct">5%</div>
+      </div>
+      <div class="phase-missing"><b>Не хватает:</b> практически всё — импорт legacy, load/security-тесты, backup/restore drill, runbooks, деплой на VNPT (SMC 03 из расчётов ROADMAP), обучение сотрудников.</div>
+    </div>
+
+    <p class="t-note" style="margin-top:18px">Взвешенно по значимости фаз — проект прошёл примерно 58–60% пути до R1. Ядро (безопасность данных + деньги + аренда) ближе к готовности; периферия (уведомления, миграция, инфраструктура прода) не начиналась.</p>
+  </section>
+
+  <!-- ======================= 07 PLAN ======================= -->
+  <section class="section" id="s7">
+    <div class="section-head">
+      <span class="section-num">07</span>
+      <h2>План действий</h2>
+    </div>
+
+    <div class="plan-step">
+      <div class="plan-when">Сегодня · 1–2 часа</div>
+      <div class="plan-what">
+        <h3>Стабилизация: спасти работу и закрыть финансовые дыры</h3>
+        <ul>
+          <li>Коммит слоями (db → api → ui) и push — P0-1.</li>
+          <li><code>.for('update')</code> на obligations в receipts и deposit apply — P0-2.</li>
+          <li>Убрать fallback на чужие депозиты в settlement — P0-4.</li>
+          <li>Удалить мусорные директории, дополнить .gitignore — P2-5.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="plan-step">
+      <div class="plan-when">Эта неделя</div>
+      <div class="plan-what">
+        <h3>Качество: тесты, CI, заголовки</h3>
+        <ul>
+          <li>Vitest + e2e API-сценарий из критериев приёмки спека (quick → settlement → оплата → депозит/паспорт → close; extend; негативные кейсы) — P1-1.</li>
+          <li>GitHub Actions: typecheck + tests на push — P1-2.</li>
+          <li>Security headers в nitro — P1-3.</li>
+          <li>S3-адаптер или честная пометка local-only в README — P0-3.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="plan-step">
+      <div class="plan-when">Следующие 2–3 недели</div>
+      <div class="plan-what">
+        <h3>Долг и Phase 3–4</h3>
+        <ul>
+          <li>Продление через отдельную obligation вместо мутации — P1-4.</li>
+          <li>Убрать obligations.status или синхронизировать — P1-5.</li>
+          <li>Сроки действия документов + предупреждения на дашборде — P2-1.</li>
+          <li>Разбить useLocale, добавить пагинацию — P2-3, P2-4.</li>
+          <li>DB-констрейнты финансовых инвариантов — P2-10.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="plan-step" style="border-bottom:none">
+      <div class="plan-when">До R1</div>
+      <div class="plan-what">
+        <h3>Фазы 5–6: операционная зрелость</h3>
+        <ul>
+          <li>Telegram-уведомления через outbox + worker (Phase 5).</li>
+          <li>Offline-кэш карточек PWA (read-only, IndexedDB).</li>
+          <li>Импорт legacy-данных с dry-run и сверкой (Phase 6).</li>
+          <li>Backup/restore drill, runbooks, деплой на VNPT, пилот с сотрудниками.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <span>MOTO//OPS · Технический аудит</span>
+    <span>19 октября 2026 · слепок коммита cc11f3a + рабочая директория</span>
+    <span>Проверено: код · git · typecheck · схема БД</span>
+  </footer>
+
+</div>
+</body>
+</html>
