@@ -69,7 +69,8 @@ export async function migrateDatabase() {
     return
   }
 
-  await getDb()
+  const db = await getDb()
+  await migratePglite(db as PgliteDatabase<typeof schema>, { migrationsFolder })
 }
 
 export async function closeDb() {

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "qr_payloads_active_identity_uidx" ON "qr_payloads" USING btree ("identity_id") WHERE status = 'active';
