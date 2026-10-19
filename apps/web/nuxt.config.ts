@@ -16,7 +16,7 @@ export default defineNuxtConfig({
     typeCheck: true,
   },
   build: {
-    transpile: ['@book-moto/contracts', '@book-moto/db', '@book-moto/domain'],
+    transpile: ['@book-moto/contracts', '@book-moto/db', '@book-moto/domain', '@book-moto/storage'],
   },
   runtimeConfig: {
     databaseUrl: process.env.DATABASE_URL,
@@ -53,7 +53,7 @@ export default defineNuxtConfig({
       name: 'MOTO//OPS Operations',
       short_name: 'MOTO//OPS',
       description: 'Motorcycle rental operations',
-      lang: 'ru',
+      lang: 'en',
       theme_color: '#10100f',
       background_color: '#10100f',
       display: 'standalone',

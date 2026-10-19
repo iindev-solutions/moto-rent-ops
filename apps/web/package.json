@@ -12,6 +12,7 @@
     "@book-moto/contracts": "*",
     "@book-moto/db": "*",
     "@book-moto/domain": "*",
+    "@book-moto/storage": "*",
     "@nuxt/ui": "4.11.2",
     "@pinia/nuxt": "1.0.2",
     "@vite-pwa/nuxt": "1.1.1",
@@ -21,7 +22,8 @@
     "nuxt-auth-utils": "^0.5.30",
     "tailwindcss": "4.3.3",
     "zod": "4.6.5",
-    "zxing-wasm": "3.1.4"
+    "zxing-wasm": "3.1.4",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

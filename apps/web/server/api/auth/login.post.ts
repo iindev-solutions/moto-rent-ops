@@ -2,19 +2,43 @@ import { verify } from 'argon2'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, users } from '@book-moto/db'
-import { safeBikeReturnTo } from '../../../server/utils/auth'
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(320),
-  password: z.string().min(8).max(256),
+  password: z.string().min(1).max(256),
   returnTo: z.string().optional(),
 })
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+const ATTEMPT_WINDOW_MS = 10 * 60 * 1000
+const MAX_ATTEMPTS = 10
+
+function checkRateLimit(key: string) {
+  const now = Date.now()
+  const entry = loginAttempts.get(key)
+  if (!entry || entry.resetAt < now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + ATTEMPT_WINDOW_MS })
+    return
+  }
+  entry.count += 1
+  if (entry.count > MAX_ATTEMPTS) {
+    throw createError({ statusCode: 429, statusMessage: 'Too many login attempts. Try again later.' })
+  }
+  if (loginAttempts.size > 10000) {
+    for (const [cacheKey, cacheEntry] of loginAttempts) {
+      if (cacheEntry.resetAt < now) loginAttempts.delete(cacheKey)
+    }
+  }
+}
 
 export default defineEventHandler(async (event) => {
   const parsed = loginSchema.safeParse(await readBody(event))
   if (!parsed.success) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid credentials payload' })
   }
+
+  const clientKey = `${parsed.data.email.toLowerCase()}|${getRequestIP(event, { xForwardedFor: true }) || 'unknown'}`
+  checkRateLimit(clientKey)
 
   const db = await getDb()
   const [user] = await db
@@ -26,6 +50,8 @@ export default defineEventHandler(async (event) => {
   if (!user || !user.active || !await verify(user.passwordHash, parsed.data.password)) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
   }
+
+  loginAttempts.delete(clientKey)
 
   await setUserSession(event, {
     user: {

@@ -1,7 +1,5 @@
 import { and, eq } from 'drizzle-orm'
 import { getDb, motorcycles, qrIdentities, qrPayloads } from '@book-moto/db'
-import { decryptLocatorToken } from '@book-moto/db/crypto'
-import { canAccessLocation, requireAppUser } from '../../../server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -25,7 +23,7 @@ export default defineEventHandler(async (event) => {
       .filter(row => canAccessLocation(user, row.location))
       .map(({ tokenCiphertext, ...bike }) => ({
         ...bike,
-        qrToken: tokenCiphertext ? decryptLocatorToken(tokenCiphertext) : null,
+        qrToken: safeDecryptLocatorToken(tokenCiphertext),
       })),
   }
 })

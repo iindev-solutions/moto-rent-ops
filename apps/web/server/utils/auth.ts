@@ -17,10 +17,11 @@ export function canAccessLocation(user: User, location: string | null) {
 }
 
 export function safeBikeReturnTo(value: unknown) {
-  if (typeof value !== 'string' || !/^\/b\/[A-Za-z0-9-]+$/.test(value)) {
-    return '/'
+  if (typeof value !== 'string') return '/dashboard'
+  if (/^\/b\/[A-Za-z0-9-]+$/.test(value)) {
+    const token = normalizeLocatorToken(value)
+    return token ? `/b/${token}` : '/dashboard'
   }
-
-  const token = normalizeLocatorToken(value)
-  return token ? `/b/${token}` : '/'
+  if (/^\/[A-Za-z0-9/_-]+$/.test(value) && !value.startsWith('//')) return value
+  return '/dashboard'
 }

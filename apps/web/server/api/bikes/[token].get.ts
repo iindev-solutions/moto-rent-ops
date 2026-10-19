@@ -2,7 +2,6 @@ import { and, eq } from 'drizzle-orm'
 import { getDb, qrIdentities, qrPayloads, motorcycles } from '@book-moto/db'
 import { hashLocatorToken } from '@book-moto/db/crypto'
 import { normalizeLocatorToken } from '@book-moto/domain/qr'
-import { canAccessLocation, requireAppUser } from '../../../server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -42,10 +41,6 @@ export default defineEventHandler(async (event) => {
 
     return row
   } catch (error) {
-    if (isError(error)) {
-      throw error
-    }
-
-    throw createError({ statusCode: 503, statusMessage: 'Database is not configured' })
+    throwApiError(error)
   }
 })
