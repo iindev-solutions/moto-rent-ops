@@ -46,6 +46,14 @@ export default defineNuxtConfig({
   routeRules: {
     '/b/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
     '/api/**': { headers: { 'cache-control': 'no-store' } },
+    '/**': {
+      headers: {
+        'x-frame-options': 'DENY',
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'strict-origin-when-cross-origin',
+        'permissions-policy': 'camera=(self), microphone=(), geolocation=()',
+      },
+    },
   },
   pwa: {
     registerType: 'autoUpdate',

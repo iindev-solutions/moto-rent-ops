@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       if (!deposit) throw createError({ statusCode: 404, statusMessage: 'Deposit not found' })
       if (deposit.status !== 'held' || deposit.amountMinor === null) throw createError({ statusCode: 409, statusMessage: 'Deposit cannot be applied' })
 
-      const [obligation] = await tx.select().from(obligations).where(eq(obligations.id, parsed.data.obligationId)).limit(1)
+      const [obligation] = await tx.select().from(obligations).where(eq(obligations.id, parsed.data.obligationId)).limit(1).for('update')
       if (!obligation) throw createError({ statusCode: 404, statusMessage: 'Obligation not found' })
       if (obligation.clientId && obligation.clientId !== deposit.clientId) {
         throw createError({ statusCode: 409, statusMessage: 'Deposit and obligation belong to different clients' })

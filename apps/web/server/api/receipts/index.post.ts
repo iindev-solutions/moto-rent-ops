@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
       const receiptCurrency = parsed.data.currency
       if (parsed.data.allocations.length > 0) {
         const obligationIds = [...new Set(parsed.data.allocations.map(allocation => allocation.obligationId))]
-        const obligationRows = await tx.select().from(obligations).where(inArray(obligations.id, obligationIds))
+        const obligationRows = await tx.select().from(obligations).where(inArray(obligations.id, obligationIds)).for('update')
         const obligationById = new Map(obligationRows.map(row => [row.id, row]))
         const allocationRows = await tx.select().from(allocations).where(inArray(allocations.obligationId, obligationIds))
         const allocatedByObligation = new Map<string, number>()

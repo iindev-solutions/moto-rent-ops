@@ -1,4 +1,4 @@
-import { desc, eq, inArray, isNull, or } from 'drizzle-orm'
+import { desc, eq, inArray } from 'drizzle-orm'
 import type { RentalItemSettlement, SettlementObligation } from '@book-moto/contracts'
 import { getDb, rentalItems, rentalAgreements, motorcycles, obligations, allocations, deposits, depositDispositions, documentCustodies } from '@book-moto/db'
 
@@ -51,8 +51,10 @@ export default defineEventHandler(async (event) => {
     const depositRows = await db
       .select()
       .from(deposits)
-      .where(or(eq(deposits.agreementId, agreement.id), isNull(deposits.agreementId)))
+      .where(eq(deposits.agreementId, agreement.id))
       .orderBy(desc(deposits.receivedAt))
+    // Strict selection: only deposits tied to this agreement. A client-level
+    // fallback (deposits from other agreements) risks returning the wrong deposit.
     const candidateDeposits = depositRows.filter(row => row.clientId === agreement.clientId)
     const deposit = candidateDeposits.find(row => row.agreementId === agreement.id && row.status !== 'returned')
       ?? candidateDeposits.find(row => row.agreementId === agreement.id)

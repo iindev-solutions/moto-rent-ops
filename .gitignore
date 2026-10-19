@@ -9,3 +9,5 @@ coverage/
 *.log
 .DS_Store
 .data/
+127.0.0.1/
+3000/
