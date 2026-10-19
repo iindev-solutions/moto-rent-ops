@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ReaderOptions } from 'zxing-wasm/reader'
+import type { MessageKey } from '~/composables/useLocale'
 
 const emit = defineEmits<{
   close: []
@@ -15,12 +16,13 @@ type WasmDecoder = (image: ImageData, options: ReaderOptions) => Promise<Array<{
 const video = ref<HTMLVideoElement | null>(null)
 let canvas: HTMLCanvasElement | undefined
 let nativeDetector: BrowserBarcodeDetector | null = null
+let nativeFailures = 0
 let wasmDecoder: WasmDecoder | undefined
 let lastScanAt = 0
 const { t } = useLocale()
 const active = ref(false)
 const busy = ref(false)
-const message = ref(t('scanner.idle'))
+const messageKey = ref<MessageKey>('scanner.idle')
 let stream: MediaStream | undefined
 let animationFrame = 0
 
@@ -30,7 +32,7 @@ async function startCamera() {
   }
 
   busy.value = true
-  message.value = t('scanner.requesting')
+  messageKey.value = 'scanner.requesting'
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -46,7 +48,15 @@ async function startCamera() {
     await video.value.play()
 
     const Detector = (window as Window & { BarcodeDetector?: BrowserBarcodeDetectorConstructor }).BarcodeDetector
-    nativeDetector = Detector ? new Detector({ formats: ['qr_code'] }) : null
+    nativeDetector = null
+    if (Detector) {
+      try {
+        nativeDetector = new Detector({ formats: ['qr_code'] })
+      } catch {
+        nativeDetector = null
+      }
+    }
+    nativeFailures = 0
     if (!nativeDetector && !wasmDecoder) {
       const decoderModule = await import('zxing-wasm/reader')
       wasmDecoder = decoderModule.readBarcodes
@@ -54,10 +64,10 @@ async function startCamera() {
 
     active.value = true
     lastScanAt = 0
-    message.value = t('scanner.aim')
+    messageKey.value = 'scanner.aim'
     animationFrame = requestAnimationFrame(scanFrame)
   } catch {
-    message.value = t('scanner.unavailable')
+    messageKey.value = 'scanner.unavailable'
     stopCamera()
   } finally {
     busy.value = false
@@ -80,13 +90,37 @@ async function scanFrame(timestamp = performance.now()) {
       ? (await nativeDetector.detect(video.value))[0]?.rawValue
       : await readVideoWithWasm(video.value)
 
+    if (!active.value) {
+      return
+    }
+
     if (value) {
       emit('found', value)
       stopCamera()
       return
     }
+    nativeFailures = 0
   } catch {
-    message.value = t('scanner.readError')
+    if (nativeDetector) {
+      nativeFailures += 1
+      if (nativeFailures >= 3) {
+        nativeDetector = null
+        nativeFailures = 0
+        if (!wasmDecoder) {
+          const decoderModule = await import('zxing-wasm/reader')
+          wasmDecoder = decoderModule.readBarcodes
+        }
+        messageKey.value = 'scanner.aim'
+      } else {
+        messageKey.value = 'scanner.readError'
+      }
+    } else {
+      messageKey.value = 'scanner.readError'
+    }
+  }
+
+  if (!active.value) {
+    return
   }
 
   animationFrame = requestAnimationFrame(scanFrame)
@@ -122,6 +156,7 @@ function stopCamera() {
   stream?.getTracks().forEach(track => track.stop())
   stream = undefined
   nativeDetector = null
+  nativeFailures = 0
   active.value = false
   if (video.value) {
     video.value.srcObject = null
@@ -131,6 +166,11 @@ function stopCamera() {
 function close() {
   stopCamera()
   emit('close')
+}
+
+async function restartCamera() {
+  stopCamera()
+  await startCamera()
 }
 
 onBeforeUnmount(stopCamera)
@@ -160,9 +200,9 @@ onBeforeUnmount(stopCamera)
         <div v-else class="pointer-events-none absolute inset-[16%] border-2 border-[var(--acid)] shadow-[0_0_0_999px_rgba(17,17,15,0.28)]" />
       </div>
 
-      <p class="mt-4 min-h-6 font-mono text-xs text-[var(--muted)]" aria-live="polite">{{ message }}</p>
+      <p class="mt-4 min-h-6 font-mono text-xs text-[var(--muted)]" aria-live="polite">{{ t(messageKey) }}</p>
       <div class="mt-6 flex flex-wrap gap-3">
-        <UButton class="button-primary" icon="i-lucide-scan-line" :loading="busy" @click="startCamera">{{ active ? t('scanner.restart') : t('scanner.start') }}</UButton>
+        <UButton class="button-primary" icon="i-lucide-scan-line" :loading="busy" @click="active ? restartCamera() : startCamera()">{{ active ? t('scanner.restart') : t('scanner.start') }}</UButton>
         <UButton class="button-secondary" @click="close">{{ t('scanner.manual') }}</UButton>
       </div>
     </section>

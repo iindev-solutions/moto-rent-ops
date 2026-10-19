@@ -1,34 +1,51 @@
 <script setup lang="ts">
 const route = useRoute()
 const { t } = useLocale()
-const { loggedIn, user, clear } = useUserSession()
+const { user, clear } = useUserSession()
 const sidebarOpen = ref(false)
+const userMenuOpen = ref(false)
 
 const navGroups = [
   {
-    label: 'Workspace',
+    labelKey: 'nav.workspace',
     items: [
-      { label: 'Overview', icon: 'i-lucide-layout-dashboard', to: '/', enabled: true },
-      { label: 'Fleet', icon: 'i-lucide-bike', to: '/bikes', enabled: true },
-      { label: 'Rentals', icon: 'i-lucide-file-signature', to: '/rentals', enabled: false },
+      { labelKey: 'nav.overview', icon: 'i-lucide-layout-dashboard', to: '/dashboard', enabled: true },
+      { labelKey: 'nav.rentOut', icon: 'i-lucide-key-round', to: '/rent', enabled: true },
+      { labelKey: 'nav.returnBike', icon: 'i-lucide-undo-2', to: '/return', enabled: true },
+      { labelKey: 'nav.fleet', icon: 'i-lucide-bike', to: '/bikes', enabled: true },
+      { labelKey: 'nav.people', icon: 'i-lucide-users', to: '/people', enabled: true },
+      { labelKey: 'nav.rentals', icon: 'i-lucide-file-signature', to: '/rentals', enabled: true },
     ],
   },
   {
-    label: 'Operations',
+    labelKey: 'nav.operations',
     items: [
-      { label: 'Finance', icon: 'i-lucide-landmark', to: '/finance', enabled: false },
-      { label: 'Documents', icon: 'i-lucide-folder-lock', to: '/documents', enabled: false },
-      { label: 'Maintenance', icon: 'i-lucide-wrench', to: '/maintenance', enabled: false },
+      { labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance', enabled: true },
+      { labelKey: 'nav.documents', icon: 'i-lucide-folder-lock', to: '/documents', enabled: true },
+      { labelKey: 'nav.maintenance', icon: 'i-lucide-wrench', to: '/maintenance', enabled: true },
+      { labelKey: 'nav.incidents', icon: 'i-lucide-alert-triangle', to: '/incidents', enabled: true },
     ],
   },
-]
+] as const
 
 const pageTitle = computed(() => {
   if (route.path.startsWith('/b/')) return t('bike.motorcycle')
+  if (route.path.startsWith('/agreements')) return t('people.agreements')
+  if (route.path.startsWith('/dashboard')) return t('nav.overview')
+  if (route.path.startsWith('/bikes')) return t('fleet.title')
+  if (route.path.startsWith('/people')) return t('people.title')
+  if (route.path.startsWith('/finance')) return t('finance.title')
+  if (route.path.startsWith('/rentals')) return t('rentals.title')
+  if (route.path.startsWith('/rent')) return t('nav.rentOut')
+  if (route.path.startsWith('/return')) return t('nav.returnBike')
+  if (route.path.startsWith('/documents')) return t('documents.title')
+  if (route.path.startsWith('/maintenance')) return t('maintenance.title')
+  if (route.path.startsWith('/incidents')) return t('incidents.title')
   return t('nav.today')
 })
 
 async function signOut() {
+  userMenuOpen.value = false
   await clear()
   await navigateTo('/login')
 }
@@ -39,36 +56,36 @@ async function signOut() {
     <aside class="app-sidebar" :class="{ 'is-open': sidebarOpen }">
       <div class="sidebar-brand-row">
         <NuxtLink to="/" class="brand-mark" @click="sidebarOpen = false">MOTO<em>//</em>OPS</NuxtLink>
-        <UButton class="sidebar-close" icon="i-lucide-x" variant="ghost" aria-label="Close navigation" @click="sidebarOpen = false" />
+        <UButton class="sidebar-close" icon="i-lucide-x" variant="ghost" :aria-label="t('nav.closeNav')" @click="sidebarOpen = false" />
       </div>
 
       <div class="workspace-switcher">
         <span class="workspace-avatar">M</span>
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-semibold">MOTO//OPS</span>
-          <span class="block truncate text-[11px] text-[var(--text-muted)]">Hanoi workspace</span>
+          <span class="block truncate text-[11px] text-[var(--text-muted)]">{{ t('app.workspace') }}</span>
         </span>
         <UIcon name="i-lucide-chevrons-up-down" class="size-3.5 text-[var(--text-muted)]" />
       </div>
 
-      <nav class="app-nav" aria-label="Main navigation">
-        <div v-for="group in navGroups" :key="group.label" class="nav-group">
-          <p class="nav-group-label">{{ group.label }}</p>
-          <template v-for="item in group.items" :key="item.label">
+      <nav class="app-nav" :aria-label="t('nav.mainNav')">
+        <div v-for="group in navGroups" :key="group.labelKey" class="nav-group">
+          <p class="nav-group-label">{{ t(group.labelKey) }}</p>
+          <template v-for="item in group.items" :key="item.labelKey">
             <NuxtLink
               v-if="item.enabled"
               :to="item.to"
               class="nav-link"
-              :class="{ 'is-active': route.path === item.to }"
+              :class="{ 'is-active': route.path === item.to || route.path.startsWith(`${item.to}/`) }"
               @click="sidebarOpen = false"
             >
               <UIcon :name="item.icon" class="size-4" />
-              <span>{{ item.label }}</span>
+              <span>{{ t(item.labelKey) }}</span>
             </NuxtLink>
             <span v-else class="nav-link is-disabled" :aria-disabled="true">
               <UIcon :name="item.icon" class="size-4" />
-              <span>{{ item.label }}</span>
-              <span class="nav-link-badge">Soon</span>
+              <span>{{ t(item.labelKey) }}</span>
+              <span class="nav-link-badge">{{ t('nav.soon') }}</span>
             </span>
           </template>
         </div>
@@ -93,10 +110,37 @@ async function signOut() {
           <div class="breadcrumb"><span class="text-[var(--text-muted)]">MOTO//OPS</span><UIcon name="i-lucide-chevron-right" class="size-3.5" /><span class="truncate font-semibold">{{ pageTitle }}</span></div>
         </div>
         <div class="flex items-center gap-2">
-          <UButton class="topbar-icon-button" icon="i-lucide-search" variant="ghost" aria-label="Search" />
           <LocaleSwitcher />
           <UColorModeButton class="topbar-icon-button" aria-label="Toggle color mode" />
-          <span class="topbar-avatar">{{ user?.name?.charAt(0) || 'U' }}</span>
+          <div class="topbar-user">
+            <button
+              class="topbar-avatar"
+              type="button"
+              :aria-expanded="userMenuOpen"
+              aria-haspopup="menu"
+              :aria-label="t('common.account')"
+              @click="userMenuOpen = !userMenuOpen"
+            >
+              {{ user?.name?.charAt(0) || 'U' }}
+            </button>
+            <template v-if="userMenuOpen">
+              <div class="topbar-user-scrim" @click="userMenuOpen = false" />
+              <div class="topbar-user-menu" role="menu">
+                <div class="topbar-user-head">
+                  <span class="user-avatar">{{ user?.name?.charAt(0) || 'U' }}</span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-semibold">{{ user?.name || 'User' }}</span>
+                    <span class="block truncate text-[11px] text-[var(--text-muted)]">{{ user?.email || '' }}</span>
+                    <span class="block truncate text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span>
+                  </span>
+                </div>
+                <button class="topbar-user-item" type="button" role="menuitem" @click="signOut">
+                  <UIcon name="i-lucide-log-out" class="size-4" />
+                  <span>{{ t('common.signOut') }}</span>
+                </button>
+              </div>
+            </template>
+          </div>
         </div>
       </header>
       <main class="app-main"><slot /></main>
