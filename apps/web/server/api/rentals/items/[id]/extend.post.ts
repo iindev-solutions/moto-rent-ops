@@ -42,7 +42,6 @@ export default defineEventHandler(async (event) => {
         agreementId: agreement.id,
         rentalItemId: item.id,
         type: 'rent_extension',
-        status: 'planned',
         amountMinor: extensionAmountMinor,
         currency: item.currency,
         dueDate: newEndDate,

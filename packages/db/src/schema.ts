@@ -164,7 +164,6 @@ export const obligations = pgTable('obligations', {
   agreementId: uuid('agreement_id').references(() => rentalAgreements.id),
   rentalItemId: uuid('rental_item_id').references(() => rentalItems.id),
   type: varchar('type', { length: 32 }).notNull(),
-  status: varchar('status', { length: 32 }).notNull().default('planned'),
   amountMinor: bigint('amount_minor', { mode: 'number' }).notNull(),
   currency: varchar('currency', { length: 8 }).notNull().default('VND'),
   dueDate: timestamp('due_date', { withTimezone: true }),
@@ -174,7 +173,6 @@ export const obligations = pgTable('obligations', {
 }, (table) => [
   index('obligations_client_idx').on(table.clientId),
   index('obligations_agreement_idx').on(table.agreementId),
-  index('obligations_status_idx').on(table.status),
 ])
 
 export const receipts = pgTable('receipts', {

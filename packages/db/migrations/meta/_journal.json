@@ -71,6 +71,13 @@
       "when": 1792351021547,
       "tag": "0009_common_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792597417795,
+      "tag": "0010_cloudy_scrambler",
+      "breakpoints": true
     }
   ]
 }

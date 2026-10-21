@@ -57,7 +57,6 @@ export default defineEventHandler(async (event) => {
         agreementId: agreement.id,
         rentalItemId: item.id,
         type: 'rent',
-        status: 'planned',
         amountMinor: item.dailyRateMinor * days,
         currency: item.currency,
         dueDate: item.endDate,
