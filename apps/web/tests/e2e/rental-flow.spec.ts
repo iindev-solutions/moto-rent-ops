@@ -291,7 +291,7 @@ describe('deposit scoping', () => {
     expect(settlementB.deposit.amountMinor).toBe(2_000_000)
   })
 
-  it('extends an active rental and recalculates the rent obligation', async () => {
+  it('extends an active rental with a separate rent_extension obligation', async () => {
     const bike = await bikeByCode('BM-008')
     const rental = await api('/api/rentals/quick', {
       json: {
@@ -306,12 +306,21 @@ describe('deposit scoping', () => {
     const itemId = rental.data.rental.itemId
     const before = (await api(`/api/rentals/items/${itemId}/settlement`)).data.settlement
     expect(before.totalDueMinor).toBe(240_000)
+    expect(before.obligations).toHaveLength(1)
+    const originalRent = before.obligations[0]
 
     const extended = await api(`/api/rentals/items/${itemId}/extend`, { json: { days: 2 } })
     expect(extended.status).toBe(200)
+    expect(extended.data.extensionAmountMinor).toBe(240_000)
 
     const after = (await api(`/api/rentals/items/${itemId}/settlement`)).data.settlement
     expect(after.totalDueMinor).toBe(480_000)
+    expect(after.obligations).toHaveLength(2)
+    const unchangedRent = after.obligations.find((row: Json) => row.type === 'rent')
+    const extension = after.obligations.find((row: Json) => row.type === 'rent_extension')
+    expect(unchangedRent.id).toBe(originalRent.id)
+    expect(unchangedRent.amountMinor).toBe(240_000)
+    expect(extension.amountMinor).toBe(240_000)
 
     // Free the bike again so the concurrency test below has an available target.
     expect((await api(`/api/rentals/items/${itemId}/return`, { json: {} })).status).toBe(200)

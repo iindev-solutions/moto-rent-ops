@@ -184,6 +184,7 @@ const english = {
   'deposit.cash': 'Cash',
   'deposit.documentCustody': 'Document custody',
   'obligation.rent': 'Rent',
+  'obligation.rentExtension': 'Rent extension',
   'maintenance.typeService': 'Service',
   'maintenance.typeRepair': 'Repair',
   'maintenance.typeInspection': 'Inspection',
@@ -621,6 +622,7 @@ const vietnamese: Record<MessageKey, string> = {
   'deposit.cash': 'Tiền mặt',
   'deposit.documentCustody': 'Giữ giấy tờ',
   'obligation.rent': 'Thuê xe',
+  'obligation.rentExtension': 'Gia hạn thuê',
   'maintenance.typeService': 'Dịch vụ',
   'maintenance.typeRepair': 'Sửa chữa',
   'maintenance.typeInspection': 'Kiểm tra',
@@ -915,6 +917,7 @@ const depositTypeKeys: Record<string, MessageKey> = {
 
 const obligationTypeKeys: Record<string, MessageKey> = {
   rent: 'obligation.rent',
+  rent_extension: 'obligation.rentExtension',
 }
 
 const maintenanceTypeKeys: Record<string, MessageKey> = {
