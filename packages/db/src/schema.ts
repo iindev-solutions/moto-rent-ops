@@ -284,6 +284,8 @@ export const deposits = pgTable('deposits', {
   index('deposits_status_idx').on(table.status),
   check('deposits_amount_nonnegative_chk', sql`${table.amountMinor} IS NULL OR ${table.amountMinor} >= 0`),
   check('deposits_cash_amount_chk', sql`${table.type} <> 'cash' OR (${table.amountMinor} IS NOT NULL AND ${table.amountMinor} > 0)`),
+  check('deposits_type_chk', sql`${table.type} IN ('cash', 'document_custody')`),
+  check('deposits_status_chk', sql`${table.status} IN ('held', 'applied', 'returned')`),
   check('deposits_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
 
@@ -324,6 +326,7 @@ export const depositDispositions = pgTable('deposit_dispositions', {
 }, (table) => [
   index('deposit_dispositions_deposit_idx').on(table.depositId),
   check('deposit_dispositions_amount_chk', sql`${table.amountMinor} > 0`),
+  check('deposit_dispositions_type_chk', sql`${table.type} IN ('applied', 'returned')`),
 ])
 
 export const incidents = pgTable('incidents', {
