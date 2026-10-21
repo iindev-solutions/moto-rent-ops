@@ -10,7 +10,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '@pinia/nuxt', '@vite-pwa/nuxt', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
-  ssr: false,
+  ssr: true,
   typescript: {
     strict: true,
     typeCheck: true,
@@ -44,6 +44,22 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
+    // Only the public landing page is server-rendered. Everything behind the
+    // staff session stays a client app: it is auth-gated, API-driven and has no
+    // SEO value.
+    '/login': { ssr: false },
+    '/dashboard': { ssr: false },
+    '/bikes': { ssr: false },
+    '/rent': { ssr: false },
+    '/rentals': { ssr: false },
+    '/return': { ssr: false },
+    '/finance': { ssr: false },
+    '/documents': { ssr: false },
+    '/maintenance': { ssr: false },
+    '/incidents': { ssr: false },
+    '/people': { ssr: false },
+    '/people/**': { ssr: false },
+    '/agreements/**': { ssr: false },
     '/b/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
     '/api/**': { headers: { 'cache-control': 'no-store' } },
     '/**': {
