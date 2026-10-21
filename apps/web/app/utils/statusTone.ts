@@ -13,6 +13,9 @@ const tones: Record<string, string> = {
   overdue: 'is-danger',
   returned: 'is-success',
   closed: 'is-success',
+  expired: 'is-danger',
+  expiring_soon: 'is-warning',
+  valid: 'is-success',
   held: 'is-warning',
 }
 

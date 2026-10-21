@@ -1,5 +1,6 @@
 import { count, eq, inArray } from 'drizzle-orm'
 import { getDb, attachments, clients, clientContacts, documentCustodies, rentalAgreements, rentalItems } from '@book-moto/db'
+import { documentExpiryStatus } from '../../../../server/utils/documents'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -23,6 +24,7 @@ export default defineEventHandler(async (event) => {
       id: documentCustodies.id,
       documentType: documentCustodies.documentType,
       maskedNumber: documentCustodies.maskedNumber,
+      expiresAt: documentCustodies.expiresAt,
       status: documentCustodies.status,
       receivedAt: documentCustodies.receivedAt,
       returnedAt: documentCustodies.returnedAt,
@@ -72,6 +74,8 @@ export default defineEventHandler(async (event) => {
         ...doc,
         receivedAt: doc.receivedAt.toISOString(),
         returnedAt: doc.returnedAt ? doc.returnedAt.toISOString() : null,
+        expiresAt: doc.expiresAt ? doc.expiresAt.toISOString() : null,
+        expiryStatus: documentExpiryStatus(doc.expiresAt),
         attachments: attachmentsByDocument.get(doc.id) ?? [],
       })),
       agreements: agreements.map(agreement => ({

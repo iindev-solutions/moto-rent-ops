@@ -353,3 +353,118 @@ describe('deposit scoping', () => {
     expect([left.status, right.status].sort((a, b) => a - b)).toEqual([200, 409])
   })
 })
+
+describe('document expiry and handover blocking', () => {
+  let expiryClientId = ''
+  let expiryDocumentId = ''
+
+  it('rejects an expired passport at quick rental intake', async () => {
+    const bike = await bikeByCode('BM-001')
+    const { status, data } = await api('/api/rentals/quick', {
+      json: {
+        newClient: { displayName: 'Expired Passport Rider', phone: '+84 900 000 006' },
+        motorcycleId: bike.id,
+        days: 2,
+        dailyRateMinor: 100_000,
+        depositType: 'document_custody',
+        passportMaskedNumber: 'P-EXPIRED',
+        passportExpiresAt: new Date(Date.now() - 86_400_000).toISOString(),
+      },
+    })
+    expect(status).toBe(400)
+    expect(JSON.stringify(data).toLowerCase()).toContain('expired')
+  })
+
+  it('records a future expiry and rejects receiving an expired document', async () => {
+    const created = await api('/api/people', {
+      json: {
+        displayName: 'Expiry Rider',
+        contacts: [{ channel: 'phone', value: '+84 900 000 007', isPrimary: true }],
+      },
+    })
+    expect(created.status).toBe(200)
+    expiryClientId = created.data.client.id
+
+    const future = new Date(Date.now() + 60 * 86_400_000)
+    const received = await api(`/api/people/${expiryClientId}/documents`, {
+      json: { documentType: 'passport', maskedNumber: 'X-999', expiresAt: future.toISOString() },
+    })
+    expect(received.status).toBe(200)
+    expiryDocumentId = received.data.document.id
+
+    const detail = await api(`/api/people/${expiryClientId}`)
+    const doc = (detail.data.documents as Json[]).find(row => row.id === expiryDocumentId)
+    expect(doc?.expiresAt).toBe(future.toISOString())
+    expect(doc?.expiryStatus).toBe('valid')
+
+    const all = await api('/api/documents')
+    expect((all.data.documents as Json[]).find(row => row.id === expiryDocumentId)?.expiryStatus).toBe('valid')
+
+    const pastReceive = await api(`/api/people/${expiryClientId}/documents`, {
+      json: { documentType: 'passport', expiresAt: new Date(Date.now() - 86_400_000).toISOString() },
+    })
+    expect(pastReceive.status).toBe(400)
+  })
+
+  it('moves a document through expiring-soon and expired states via PATCH', async () => {
+    const soonUpdate = await api(`/api/documents/${expiryDocumentId}`, {
+      method: 'PATCH',
+      json: { expiresAt: new Date(Date.now() + 10 * 86_400_000).toISOString() },
+    })
+    expect(soonUpdate.status).toBe(200)
+    expect(soonUpdate.data.document.expiryStatus).toBe('expiring_soon')
+
+    const expiredUpdate = await api(`/api/documents/${expiryDocumentId}`, {
+      method: 'PATCH',
+      json: { expiresAt: new Date(Date.now() - 86_400_000).toISOString() },
+    })
+    expect(expiredUpdate.status).toBe(200)
+    expect(expiredUpdate.data.document.expiryStatus).toBe('expired')
+
+    const all = await api('/api/documents')
+    expect((all.data.documents as Json[]).find(row => row.id === expiryDocumentId)?.expiryStatus).toBe('expired')
+  })
+
+  it('blocks handover with an expired held document and allows it after renewal', async () => {
+    const active = await api('/api/rentals/active')
+    const running = (active.data.rentals as Json[]).find(row => row.assetCode === 'BM-008')
+    expect(running, 'the concurrency test must leave BM-008 rented').toBeTruthy()
+    expect((await api(`/api/rentals/items/${running!.itemId}/return`, { json: {} })).status).toBe(200)
+
+    const bike = await bikeByCode('BM-008')
+    expect(bike.status).toBe('available')
+
+    const start = new Date(Date.now() + 86_400_000)
+    const end = new Date(start.getTime() + 2 * 86_400_000)
+    const agreement = await api(`/api/people/${expiryClientId}/agreements`, {
+      json: { startDate: start.toISOString(), endDate: end.toISOString() },
+    })
+    expect(agreement.status).toBe(200)
+    const agreementId = agreement.data.agreement.id
+
+    const item = await api(`/api/agreements/${agreementId}/items`, {
+      json: { motorcycleId: bike.id, startDate: start.toISOString(), endDate: end.toISOString(), dailyRateMinor: 100_000 },
+    })
+    expect(item.status).toBe(200)
+    const itemId = item.data.item.id
+
+    const drafted = await api(`/api/agreements/${agreementId}`)
+    expect(drafted.data.blockers).toContain('The received document is expired')
+
+    expect((await api(`/api/agreements/${agreementId}/ready`, { json: {} })).status).toBe(200)
+
+    const blocked = await api(`/api/rentals/items/${itemId}/handover`, { json: { odometer: 1000 } })
+    expect(blocked.status).toBe(409)
+
+    const renewed = await api(`/api/documents/${expiryDocumentId}`, {
+      method: 'PATCH',
+      json: { expiresAt: new Date(Date.now() + 90 * 86_400_000).toISOString() },
+    })
+    expect(renewed.status).toBe(200)
+
+    const handover = await api(`/api/rentals/items/${itemId}/handover`, { json: { odometer: 1000 } })
+    expect(handover.status).toBe(200)
+    expect(handover.data.handedOver).toBe(true)
+    expect((await bikeByCode('BM-008')).status).toBe('rented')
+  })
+})

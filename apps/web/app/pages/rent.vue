@@ -38,6 +38,7 @@ const endDate = computed(() => new Date(Date.now() + days.value * 86400000))
 const depositType = ref<'cash' | 'document_custody'>('cash')
 const depositAmount = ref(2000000)
 const passportMasked = ref('')
+const passportExpiresAt = ref('')
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 watch(clientQuery, (value) => {
@@ -140,6 +141,9 @@ async function submit() {
         depositType: depositType.value,
         depositAmountMinor: depositType.value === 'cash' ? depositAmount.value : undefined,
         passportMaskedNumber: depositType.value === 'document_custody' ? passportMasked.value.trim() || undefined : undefined,
+        passportExpiresAt: depositType.value === 'document_custody' && passportExpiresAt.value
+          ? new Date(`${passportExpiresAt.value}T23:59:59`).toISOString()
+          : undefined,
       },
     })
 
@@ -179,6 +183,7 @@ function resetAll() {
   depositType.value = 'cash'
   depositAmount.value = 2000000
   passportMasked.value = ''
+  passportExpiresAt.value = ''
   photoFiles.value = []
   uploadedPhotoCount.value = 0
 }
@@ -318,9 +323,16 @@ onMounted(() => {
           <label class="text-xs text-[var(--muted)]" for="rent-deposit">{{ t('rent.depositAmount') }}</label>
           <UInput id="rent-deposit" v-model.number="depositAmount" type="number" min="0" step="100000" class="w-full" />
         </div>
-        <div v-else class="mt-3 grid gap-1">
-          <label class="text-xs text-[var(--muted)]" for="rent-passport">{{ t('rent.passportNumber') }}</label>
-          <UInput id="rent-passport" v-model="passportMasked" class="w-full" />
+        <div v-else class="mt-3 grid gap-3">
+          <div class="grid gap-1">
+            <label class="text-xs text-[var(--muted)]" for="rent-passport">{{ t('rent.passportNumber') }}</label>
+            <UInput id="rent-passport" v-model="passportMasked" class="w-full" />
+          </div>
+          <div class="grid gap-1">
+            <label class="text-xs text-[var(--muted)]" for="rent-passport-expiry">{{ t('documents.expiry') }}</label>
+            <UInput id="rent-passport-expiry" v-model="passportExpiresAt" type="date" class="w-full" />
+            <span class="text-[10px] text-[var(--muted)]">{{ t('documents.expiryHint') }}</span>
+          </div>
         </div>
       </section>
 

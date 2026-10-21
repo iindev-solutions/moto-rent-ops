@@ -20,6 +20,7 @@ const bodySchema = z.object({
   depositType: z.enum(['cash', 'document_custody']).default('cash'),
   depositAmountMinor: z.number().int().min(0).optional(),
   passportMaskedNumber: z.string().trim().max(64).optional(),
+  passportExpiresAt: z.string().datetime().optional(),
 }).refine(data => Boolean(data.clientId) !== Boolean(data.newClient), { message: 'Provide either clientId or newClient' })
 
 export default defineEventHandler(async (event) => {
@@ -31,6 +32,11 @@ export default defineEventHandler(async (event) => {
   const startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : new Date()
   if (Number.isNaN(startDate.getTime())) throw createError({ statusCode: 400, statusMessage: 'Invalid start date' })
   const endDate = new Date(startDate.getTime() + parsed.data.days * DAY_MS)
+  const passportExpiresAt = parsed.data.passportExpiresAt ? new Date(parsed.data.passportExpiresAt) : null
+  if (passportExpiresAt && Number.isNaN(passportExpiresAt.getTime())) throw createError({ statusCode: 400, statusMessage: 'Invalid passport expiry date' })
+  if (parsed.data.depositType === 'document_custody' && passportExpiresAt && passportExpiresAt.getTime() < Date.now()) {
+    throw createError({ statusCode: 400, statusMessage: 'Passport is already expired' })
+  }
   const depositAmountMinor = parsed.data.depositType === 'cash'
     ? parsed.data.depositAmountMinor ?? DEFAULT_DEPOSIT_MINOR
     : null
@@ -125,6 +131,7 @@ export default defineEventHandler(async (event) => {
           clientId,
           documentType: 'passport',
           maskedNumber: parsed.data.passportMaskedNumber || null,
+          expiresAt: passportExpiresAt,
           status: 'held',
           receivedByUserId: user.id,
         }).returning()

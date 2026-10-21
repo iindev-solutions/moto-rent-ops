@@ -1,0 +1,1 @@
+ALTER TABLE "document_custodies" ADD COLUMN "expires_at" timestamp with time zone;

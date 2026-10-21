@@ -99,6 +99,7 @@ export const documentCustodies = pgTable('document_custodies', {
   clientId: uuid('client_id').notNull().references(() => clients.id),
   documentType: varchar('document_type', { length: 64 }).notNull(),
   maskedNumber: varchar('masked_number', { length: 64 }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
   status: varchar('status', { length: 16 }).notNull().default('held'),
   receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
   returnedAt: timestamp('returned_at', { withTimezone: true }),

@@ -1,6 +1,7 @@
 import { z } from 'zod'
-import { eq } from 'drizzle-orm'
-import { getDb, rentalItems, rentalAgreements, motorcycles, handovers, obligations, auditEvents } from '@book-moto/db'
+import { and, eq } from 'drizzle-orm'
+import { getDb, rentalItems, rentalAgreements, motorcycles, handovers, obligations, documentCustodies, auditEvents } from '@book-moto/db'
+import { hasValidHeldDocument } from '../../../../../server/utils/documents'
 
 const bodySchema = z.object({
   odometer: z.number().int().min(0).optional(),
@@ -30,6 +31,11 @@ export default defineEventHandler(async (event) => {
       const [bike] = await tx.select().from(motorcycles).where(eq(motorcycles.id, item.motorcycleId)).limit(1).for('update')
       if (!bike || !canAccessLocation(user, bike.location)) throw createError({ statusCode: 404, statusMessage: 'Motorcycle not found' })
       if (!['available', 'reserved'].includes(bike.status)) throw createError({ statusCode: 409, statusMessage: 'Motorcycle is not available' })
+
+      const heldDocuments = await tx.select({ expiresAt: documentCustodies.expiresAt })
+        .from(documentCustodies)
+        .where(and(eq(documentCustodies.clientId, agreement.clientId), eq(documentCustodies.status, 'held')))
+      if (!hasValidHeldDocument(heldDocuments)) throw createError({ statusCode: 409, statusMessage: 'Client has no valid held document' })
 
       const [handover] = await tx.insert(handovers).values({
         rentalItemId: item.id,

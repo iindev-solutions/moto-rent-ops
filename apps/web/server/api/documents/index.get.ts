@@ -1,5 +1,6 @@
 import { desc, inArray } from 'drizzle-orm'
 import { getDb, clients, documentCustodies } from '@book-moto/db'
+import { documentExpiryStatus } from '../../utils/documents'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -20,6 +21,8 @@ export default defineEventHandler(async (event) => {
         clientName: clientNames.get(document.clientId) ?? null,
         documentType: document.documentType,
         maskedNumber: document.maskedNumber,
+        expiresAt: document.expiresAt ? document.expiresAt.toISOString() : null,
+        expiryStatus: documentExpiryStatus(document.expiresAt),
         status: document.status,
         receivedAt: document.receivedAt.toISOString(),
         returnedAt: document.returnedAt ? document.returnedAt.toISOString() : null,

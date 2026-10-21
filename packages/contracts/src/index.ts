@@ -93,10 +93,14 @@ export type AttachmentSummary = {
   contentType: string
 }
 
+export type DocumentExpiryStatus = 'expired' | 'expiring_soon' | 'valid'
+
 export type DocumentCustody = {
   id: string
   documentType: string
   maskedNumber: string | null
+  expiresAt: string | null
+  expiryStatus: DocumentExpiryStatus | null
   status: string
   receivedAt: string
   returnedAt: string | null
