@@ -108,7 +108,7 @@ function printLabel() {
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div class="flex items-center gap-5">
           <NuxtLink to="/" class="brand-mark">MOTO<em>//</em>OPS</NuxtLink>
-          <span class="hidden font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)] sm:inline">{{ t('bike.motorcycle') }} / {{ token || '—' }}</span>
+          <span class="hidden font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)] sm:inline">{{ t('bike.motorcycle') }} / {{ bike?.assetCode || '—' }}</span>
         </div>
         <LocaleSwitcher />
       </div>
@@ -143,7 +143,7 @@ function printLabel() {
         <div class="no-print mt-6 flex flex-wrap gap-3">
           <UButton class="button-secondary" icon="i-lucide-printer" @click="printLabel">{{ t('bike.printLabel') }}</UButton>
           <UButton class="button-secondary" icon="i-lucide-refresh-cw" @click="rotateOpen = true; resetActionState()">{{ t('bike.rotateQr') }}</UButton>
-          <UButton class="button-secondary" icon="i-lucide-ban" variant="outline" @click="revokeOpen = true; resetActionState()">{{ t('bike.revokeQr') }}</UButton>
+          <UButton class="button-danger" icon="i-lucide-ban" @click="revokeOpen = true; resetActionState()">{{ t('bike.revokeQr') }}</UButton>
         </div>
 
         <p v-if="actionError" class="no-print mt-4 text-sm text-[var(--danger)]" role="alert">{{ actionError }}</p>
@@ -164,7 +164,7 @@ function printLabel() {
           <div class="mt-4 grid gap-3">
             <UInput v-model="reason" class="w-full" :placeholder="t('bike.reasonPlaceholder')" />
             <div class="flex gap-2">
-              <UButton class="button-primary" variant="solid" color="error" :loading="pending" @click="revokeQr">{{ t('bike.confirmRevoke') }}</UButton>
+              <UButton class="button-danger-solid" :loading="pending" @click="revokeQr">{{ t('bike.confirmRevoke') }}</UButton>
               <UButton class="button-secondary" variant="ghost" @click="revokeOpen = false">{{ t('common.cancel') }}</UButton>
             </div>
           </div>
@@ -193,7 +193,7 @@ function printLabel() {
             <div><p class="data-label">{{ t('people.client') }}</p><p class="mt-1 font-semibold">{{ context.activeRental.client?.displayName || '—' }}</p></div>
             <div><p class="data-label">{{ t('bike.status') }}</p><p class="mt-1 font-semibold">{{ tStatus(context.activeRental.status) }}</p></div>
             <div><p class="data-label">{{ t('people.items') }}</p><p class="mt-1 font-semibold">{{ formatDateTime(context.activeRental.startDate) }} → {{ formatDateTime(context.activeRental.endDate) }}</p></div>
-            <div><p class="data-label">{{ t('people.dailyRate') }}</p><p class="mt-1 font-semibold">{{ context.activeRental.dailyRateMinor }} {{ context.activeRental.currency }}</p></div>
+            <div><p class="data-label">{{ t('people.dailyRate') }}</p><p class="mt-1 font-semibold">{{ formatMoney(context.activeRental.dailyRateMinor, context.activeRental.currency) }}</p></div>
           </div>
           <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noActiveRental') }}</p>
 
@@ -201,7 +201,7 @@ function printLabel() {
             <p class="panel-title">{{ t('finance.deposits') }}</p>
             <div v-for="deposit in context.deposits" :key="deposit.id" class="mt-2 flex items-center justify-between border-b border-[var(--line)] py-2 last:border-b-0">
               <span>{{ tDepositType(deposit.type) }}</span>
-              <span>{{ deposit.amountMinor ?? '—' }} {{ deposit.currency }} · {{ tStatus(deposit.status) }}</span>
+              <span>{{ formatMoney(deposit.amountMinor, deposit.currency) }} · {{ tStatus(deposit.status) }}</span>
             </div>
           </div>
 
@@ -209,7 +209,7 @@ function printLabel() {
             <p class="panel-title">{{ t('finance.obligations') }}</p>
             <div v-for="obligation in context.obligations" :key="obligation.id" class="mt-2 flex items-center justify-between border-b border-[var(--line)] py-2 last:border-b-0">
               <span>{{ tObligationType(obligation.type) }}</span>
-              <span>{{ obligation.amountMinor }} {{ obligation.currency }} · {{ tStatus(obligation.status) }}</span>
+              <span>{{ formatMoney(obligation.amountMinor, obligation.currency) }} · {{ tStatus(obligation.status) }}</span>
             </div>
           </div>
         </section>
@@ -227,8 +227,6 @@ function printLabel() {
             <p class="print-version">{{ t('bike.printedAt') }}: {{ formatDateTime(new Date()) }}</p>
           </div>
         </section>
-
-        <p class="no-print mt-6 font-mono text-xs text-[var(--muted)]">{{ t('bike.deepLinkConfirmed') }}</p>
       </section>
 
       <section v-else class="surface mt-8 p-8 sm:p-10 no-print">

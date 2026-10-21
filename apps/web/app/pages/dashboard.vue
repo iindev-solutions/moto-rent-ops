@@ -127,7 +127,7 @@ async function exportCsv() {
         <h1 class="page-title mt-2">{{ t('nav.overview') }}</h1>
         <p class="page-subtitle">{{ t('dashboard.subtitle') }}</p>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="page-actions flex flex-wrap gap-2">
         <UButton class="button-primary" icon="i-lucide-key-round" @click="router.push('/rent')">{{ t('nav.rentOut') }}</UButton>
         <UButton class="button-secondary" icon="i-lucide-undo-2" @click="router.push('/return')">{{ t('nav.returnBike') }}</UButton>
         <UButton class="button-secondary" icon="i-lucide-download" variant="ghost" :loading="exporting" @click="exportCsv">{{ t('dashboard.export') }}</UButton>
@@ -248,7 +248,7 @@ async function exportCsv() {
             <tbody>
               <tr v-for="bike in visibleBikes" :key="bike.id">
                 <td><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="font-semibold hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else class="font-semibold">{{ bike.assetCode }} · {{ bike.model }}</span><div class="mt-1 font-mono text-[11px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
-                <td><span class="status-pill">{{ statusLabel(bike.status) }}</span></td>
+                <td><span class="status-pill" :class="statusTone(bike.status)">{{ statusLabel(bike.status) }}</span></td>
                 <td>{{ bike.location || '—' }}</td>
                 <td>{{ bike.nextAction || '—' }}</td>
               </tr>
@@ -271,8 +271,6 @@ async function exportCsv() {
           </div>
           <p v-if="scannerError" class="text-xs text-[var(--danger)]" role="alert">{{ scannerError }}</p>
         </div>
-        <div class="panel-header border-t border-b-0"><p class="panel-title">{{ t('dashboard.regions') }}</p></div>
-        <div class="panel-body pt-0 text-sm text-[var(--text-muted)]">{{ t('dashboard.vietnam') }}</div>
       </aside>
     </section>
 

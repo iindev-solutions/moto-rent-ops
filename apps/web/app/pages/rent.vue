@@ -279,7 +279,7 @@ onMounted(() => {
             :variant="days === preset ? 'solid' : 'outline'"
             @click="days = preset"
           >
-            {{ preset }} {{ t('rent.days') }}
+            {{ preset }} {{ preset === 1 ? t('rent.day') : t('rent.days') }}
           </UButton>
           <UInput v-model.number="days" type="number" min="1" max="90" class="w-24" :aria-label="t('rent.days')" />
         </div>

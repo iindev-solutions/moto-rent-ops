@@ -148,11 +148,15 @@ button.topbar-avatar:focus-visible { outline: 3px solid color-mix(in srgb, var(-
 .empty-state { display: flex; min-height: 160px; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.88rem; text-align: center; }
 .quick-action { display: flex; min-height: 44px; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 8px; background: var(--panel-muted); padding: 0 12px; color: var(--text); font-size: 0.85rem; font-weight: 600; }
 .quick-action:hover { border-color: var(--border); background: var(--panel); }
-.button-primary, .button-secondary, .brutal-button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 14px; font-size: 0.85rem; font-weight: 700; transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; }
+.button-primary, .button-secondary, .button-danger, .button-danger-solid, .brutal-button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 14px; font-size: 0.85rem; font-weight: 700; transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; }
 .button-primary, .brutal-button { background: var(--primary); color: var(--primary-contrast); }
 .button-secondary { background: var(--panel); color: var(--text); }
+.button-danger { background: var(--panel); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); color: var(--danger); }
+.button-danger:hover { background: color-mix(in srgb, var(--danger) 8%, var(--panel)); }
+.button-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.button-danger-solid:hover { background: color-mix(in srgb, var(--danger) 88%, #000); }
 .button-primary:hover, .button-secondary:hover, .brutal-button:hover { transform: translateY(-1px); }
-.button-primary:focus-visible, .button-secondary:focus-visible, .brutal-button:focus-visible, .brutal-input:focus-visible, .locale-switch button:focus-visible, .nav-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+.button-primary:focus-visible, .button-secondary:focus-visible, .button-danger:focus-visible, .button-danger-solid:focus-visible, .brutal-button:focus-visible, .brutal-input:focus-visible, .locale-switch button:focus-visible, .nav-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
 .brutal-input { min-height: 40px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--panel); color: var(--text); padding: 0 12px; transition: border-color 150ms ease, box-shadow 150ms ease; }
 .brutal-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .locale-switch { display: inline-flex; overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); }
@@ -161,6 +165,9 @@ button.topbar-avatar:focus-visible { outline: 3px solid color-mix(in srgb, var(-
 .locale-switch button.is-active { background: var(--primary); color: var(--primary-contrast); }
 .status-dot { display: inline-block; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; background: #22c55e; }
 .status-pill { display: inline-flex; align-items: center; min-height: 26px; border: 1px solid currentColor; border-radius: 999px; padding: 0 8px; color: var(--accent); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; }
+.status-pill.is-success { color: var(--success); background: color-mix(in srgb, var(--success) 7%, transparent); }
+.status-pill.is-warning { color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); }
+.status-pill.is-danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, transparent); }
 .page-shell { min-height: 100dvh; background: var(--app-bg); color: var(--text); }
 .topbar { border-bottom: 1px solid var(--border); background: var(--panel); }
 .quiet-link { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -175,7 +182,11 @@ button.topbar-avatar:focus-visible { outline: 3px solid color-mix(in srgb, var(-
 }
 
 @media (max-width: 767px) {
-  .stat-grid, .content-grid { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; }
+  .page-actions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-card { min-height: 96px; padding: 12px; }
+  .content-grid { grid-template-columns: 1fr; }
   .today-grid { grid-template-columns: 1fr; gap: 18px; }
   .app-topbar { min-height: 56px; }
 }

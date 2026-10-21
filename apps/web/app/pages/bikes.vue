@@ -102,7 +102,7 @@ function onScan(value: string) {
           <tbody>
             <tr v-for="bike in bikes" :key="bike.id">
               <td><div class="font-semibold"><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else>{{ bike.assetCode }} · {{ bike.model }}</span></div><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
-              <td><span class="status-pill">{{ statusLabel(bike.status) }}</span></td>
+              <td><span class="status-pill" :class="statusTone(bike.status)">{{ statusLabel(bike.status) }}</span></td>
               <td>{{ bike.location || '—' }}</td>
               <td>{{ bike.nextAction || '—' }}</td>
               <td class="text-right"><div class="flex justify-end gap-2"><UButton v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" variant="ghost" size="sm" trailing-icon="i-lucide-arrow-up-right">{{ t('fleet.open') }}</UButton><UButton v-else variant="outline" size="sm" :loading="reissuing && reissueId === bike.id" @click="reissueQr(bike.id)">{{ t('fleet.reissue') }}</UButton></div></td>

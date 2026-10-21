@@ -138,7 +138,7 @@ async function returnDeposit(depositId: string) {
               <td>{{ formatMoney(row.amountMinor) }}</td>
               <td>{{ formatMoney(row.allocatedMinor) }}</td>
               <td>{{ formatMoney(row.balanceMinor) }}</td>
-              <td><span class="status-pill">{{ tStatus(row.status) }}</span></td>
+              <td><span class="status-pill" :class="statusTone(row.status)">{{ tStatus(row.status) }}</span></td>
             </tr>
           </tbody>
         </table>
@@ -153,7 +153,7 @@ async function returnDeposit(depositId: string) {
           <thead><tr><th>{{ t('finance.method') }}</th><th>{{ t('finance.amount') }}</th><th>{{ t('finance.receivedAt') }}</th></tr></thead>
           <tbody>
             <tr v-for="row in receipts" :key="row.id">
-              <td>{{ row.method }}</td>
+              <td class="capitalize">{{ row.method }}</td>
               <td>{{ formatMoney(row.amountMinor) }}</td>
               <td>{{ formatDateTime(row.receivedAt) }}</td>
             </tr>
@@ -173,7 +173,7 @@ async function returnDeposit(depositId: string) {
               <td>{{ tDepositType(row.type) }}</td>
               <td>{{ formatMoney(row.amountMinor) }}</td>
               <td>{{ formatMoney(row.remainingMinor) }}</td>
-              <td><span class="status-pill">{{ tStatus(row.status) }}</span></td>
+              <td><span class="status-pill" :class="statusTone(row.status)">{{ tStatus(row.status) }}</span></td>
               <td>{{ formatDateTime(row.receivedAt) }}</td>
               <td class="text-right">
                 <div v-if="row.status === 'held'" class="flex justify-end gap-2">
