@@ -45,14 +45,14 @@ if (!adminUser) {
 }
 
 const fixtures = [
-  { assetCode: 'BM-001', model: 'Honda CB500F', plate: '59-B1 001', status: 'available', location: 'Hanoi Hub', nextAction: 'Print QR label' },
-  { assetCode: 'BM-002', model: 'Yamaha MT-07', plate: '59-B1 002', status: 'rented', location: 'Hanoi Hub', nextAction: 'Return check' },
+  { assetCode: 'BM-001', model: 'Honda CB500F', plate: '59-B1 001', status: 'available', location: 'Đà Nẵng', nextAction: 'Print QR label' },
+  { assetCode: 'BM-002', model: 'Yamaha MT-07', plate: '59-B1 002', status: 'rented', location: 'Đà Nẵng', nextAction: 'Return check' },
   { assetCode: 'BM-003', model: 'KTM 390 Adventure', plate: '59-B1 003', status: 'maintenance', location: 'Workshop', nextAction: 'Service due' },
-  { assetCode: 'BM-004', model: 'Honda XR150L', plate: '29-A1 004', status: 'rented', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-005', model: 'Yamaha XTZ150', plate: '29-A1 005', status: 'rented', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-006', model: 'Honda Vision', plate: '29-A2 006', status: 'available', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-007', model: 'Ducati Scrambler Icon', plate: '29-A3 007', status: 'reserved', location: 'Hanoi Hub', nextAction: 'Prepare for weekend pickup' },
-  { assetCode: 'BM-008', model: 'Honda CB300R', plate: '29-A1 008', status: 'available', location: 'Hanoi Hub', nextAction: null },
+  { assetCode: 'BM-004', model: 'Honda XR150L', plate: '29-A1 004', status: 'rented', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-005', model: 'Yamaha XTZ150', plate: '29-A1 005', status: 'rented', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-006', model: 'Honda Vision', plate: '29-A2 006', status: 'available', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-007', model: 'Ducati Scrambler Icon', plate: '29-A3 007', status: 'reserved', location: 'Đà Nẵng', nextAction: 'Prepare for weekend pickup' },
+  { assetCode: 'BM-008', model: 'Honda CB300R', plate: '29-A1 008', status: 'available', location: 'Đà Nẵng', nextAction: null },
   { assetCode: 'BM-009', model: 'Suzuki Raider R150', plate: '29-A1 009', status: 'inspection', location: 'Workshop', nextAction: 'Diagnose chain slip' },
   { assetCode: 'BM-010', model: 'Honda Winner X', plate: '29-A2 010', status: 'maintenance', location: 'Workshop', nextAction: 'Inspection before re-rent' },
 ]
@@ -63,6 +63,8 @@ for (const fixture of fixtures) {
   let [bike] = await db.select().from(motorcycles).where(eq(motorcycles.assetCode, fixture.assetCode)).limit(1)
   if (!bike) {
     ;[bike] = await db.insert(motorcycles).values(fixture).returning()
+  } else if (bike.location !== fixture.location) {
+    await db.update(motorcycles).set({ location: fixture.location }).where(eq(motorcycles.id, bike.id))
   }
   if (!bike) {
     throw new Error(`Could not create motorcycle ${fixture.assetCode}`)

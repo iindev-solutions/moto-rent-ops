@@ -33,7 +33,7 @@ function bikeLabel(item: TodayQueueEntry) {
 }
 
 function obligationTitle(item: TodayQueueEntry) {
-  return `${tObligationType(item.type || 'rent')} · ${item.amountMinor ?? '—'} ${item.currency || ''}`.trim()
+  return `${tObligationType(item.type || 'rent')} · ${formatMoney(item.amountMinor, item.currency || 'VND')}`
 }
 
 function maintenanceTitle(item: TodayQueueEntry) {
@@ -41,7 +41,7 @@ function maintenanceTitle(item: TodayQueueEntry) {
 }
 
 function depositTitle(item: TodayQueueEntry) {
-  const amount = item.amountMinor != null ? ` · ${item.amountMinor} ${item.currency || ''}`.trimEnd() : ''
+  const amount = item.amountMinor != null ? ` · ${formatMoney(item.amountMinor, item.currency || 'VND')}` : ''
   return `${tDepositType(item.type || 'cash')}${amount}`
 }
 
@@ -265,8 +265,8 @@ async function exportCsv() {
           </div>
           <p v-if="scannerError" class="text-xs text-[var(--danger)]" role="alert">{{ scannerError }}</p>
         </div>
-        <div class="panel-header border-t border-b-0"><p class="panel-title">{{ t('dashboard.regions') }}</p><span class="status-pill">{{ t('dashboard.vietnam') }}</span></div>
-        <div class="panel-body pt-0 text-sm text-[var(--text-muted)]">{{ t('home.residency') }}: <span class="font-semibold text-[var(--text)]">{{ t('dashboard.vietnam') }}</span></div>
+        <div class="panel-header border-t border-b-0"><p class="panel-title">{{ t('dashboard.regions') }}</p></div>
+        <div class="panel-body pt-0 text-sm text-[var(--text-muted)]">{{ t('dashboard.vietnam') }}</div>
       </aside>
     </section>
 
