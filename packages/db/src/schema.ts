@@ -55,6 +55,21 @@ export const qrPayloads = pgTable('qr_payloads', {
   index('qr_payloads_identity_status_idx').on(table.identityId, table.status),
 ])
 
+export const locationAssignments = pgTable('location_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  motorcycleId: uuid('motorcycle_id').notNull().references(() => motorcycles.id),
+  location: varchar('location', { length: 120 }).notNull(),
+  note: text('note'),
+  assignedByUserId: uuid('assigned_by_user_id').references(() => users.id),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('location_assignments_motorcycle_idx').on(table.motorcycleId, table.startedAt),
+  check('location_assignments_location_chk', sql`length(trim(${table.location})) > 0`),
+  check('location_assignments_window_chk', sql`${table.endedAt} IS NULL OR ${table.endedAt} >= ${table.startedAt}`),
+])
+
 export const auditEvents = pgTable('audit_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   actorUserId: uuid('actor_user_id').references(() => users.id),

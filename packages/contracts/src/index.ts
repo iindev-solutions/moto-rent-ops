@@ -95,6 +95,15 @@ export type AttachmentSummary = {
 
 export type DocumentExpiryStatus = 'expired' | 'expiring_soon' | 'valid'
 
+export type LocationAssignment = {
+  id: string
+  location: string
+  note: string | null
+  startedAt: string
+  endedAt: string | null
+  actorName: string | null
+}
+
 export type DocumentCustody = {
   id: string
   documentType: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BikeSummary } from '@book-moto/contracts'
+import type { BikeSummary, LocationAssignment } from '@book-moto/contracts'
 import { normalizeLocatorToken } from '@book-moto/domain/qr'
 
 definePageMeta({ middleware: 'auth', layout: false })
@@ -9,7 +9,7 @@ const router = useRouter()
 const { t, tStatus, tDepositType, tObligationType } = useLocale()
 const token = computed(() => normalizeLocatorToken(String(route.params.token || '')) || '')
 const tokenReady = Boolean(token.value)
-const { data: bike, error, status } = await useFetch<BikeSummary>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
+const { data: bike, error, status, refresh: refreshBike } = await useFetch<BikeSummary>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
   retry: 0,
   immediate: tokenReady,
 })
@@ -20,6 +20,11 @@ const { data: context, error: contextError } = await useFetch<any>(() => `/api/b
 })
 
 const { data: eventsData, error: eventsError } = await useFetch<{ events: Array<{ id: string; action: string; reason: string | null; createdAt: string; actorName: string | null; actorEmail: string | null }> }>(() => `/api/bikes/${encodeURIComponent(token.value)}/events`, {
+  retry: 0,
+  immediate: tokenReady,
+})
+
+const { data: locationsData, error: locationsError, refresh: refreshLocations } = await useFetch<{ locations: LocationAssignment[] }>(() => `/api/bikes/${encodeURIComponent(token.value)}/locations`, {
   retry: 0,
   immediate: tokenReady,
 })
@@ -97,6 +102,35 @@ async function revokeQr() {
   }
 }
 
+const moveOpen = ref(false)
+const moveLocation = ref('')
+const moveNote = ref('')
+
+function resetMoveState() {
+  moveLocation.value = ''
+  moveNote.value = ''
+  actionError.value = ''
+}
+
+async function moveBike() {
+  if (!token.value) return
+  pending.value = true
+  actionError.value = ''
+  try {
+    await $fetch(`/api/bikes/${encodeURIComponent(token.value)}/location`, {
+      method: 'POST',
+      body: { location: moveLocation.value, note: moveNote.value || undefined },
+    })
+    moveOpen.value = false
+    resetMoveState()
+    await Promise.all([refreshBike(), refreshLocations()])
+  } catch (error) {
+    actionError.value = apiErrorMessage(error, t('common.error'))
+  } finally {
+    pending.value = false
+  }
+}
+
 function printLabel() {
   window.print()
 }
@@ -142,6 +176,7 @@ function printLabel() {
 
         <div class="no-print mt-6 flex flex-wrap gap-3">
           <UButton class="button-secondary" icon="i-lucide-printer" @click="printLabel">{{ t('bike.printLabel') }}</UButton>
+          <UButton class="button-secondary" icon="i-lucide-map-pin" @click="moveOpen = true; resetMoveState()">{{ t('bike.move') }}</UButton>
           <UButton class="button-secondary" icon="i-lucide-refresh-cw" @click="rotateOpen = true; resetActionState()">{{ t('bike.rotateQr') }}</UButton>
           <UButton class="button-danger" icon="i-lucide-ban" @click="revokeOpen = true; resetActionState()">{{ t('bike.revokeQr') }}</UButton>
         </div>
@@ -170,6 +205,18 @@ function printLabel() {
           </div>
         </div>
 
+        <div v-if="moveOpen" class="no-print surface mt-6 p-6">
+          <p class="eyebrow">{{ t('bike.move') }}</p>
+          <div class="mt-4 grid gap-3">
+            <UInput v-model="moveLocation" class="w-full" :placeholder="t('bike.newLocation')" />
+            <UInput v-model="moveNote" class="w-full" :placeholder="t('bike.moveNote')" />
+            <div class="flex gap-2">
+              <UButton class="button-primary" :loading="pending" @click="moveBike">{{ t('bike.confirmMove') }}</UButton>
+              <UButton class="button-secondary" variant="ghost" @click="moveOpen = false">{{ t('common.cancel') }}</UButton>
+            </div>
+          </div>
+        </div>
+
         <section class="no-print surface mt-6 p-6">
           <p class="panel-title">{{ t('bike.history') }}</p>
           <div v-if="eventsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
@@ -184,6 +231,22 @@ function printLabel() {
             </div>
           </div>
           <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noHistory') }}</p>
+        </section>
+
+        <section class="no-print surface mt-6 p-6">
+          <p class="panel-title">{{ t('bike.locationHistory') }}</p>
+          <div v-if="locationsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+          <div v-else-if="locationsData?.locations?.length" class="mt-4 space-y-3">
+            <div v-for="entry in locationsData.locations" :key="entry.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="font-semibold">{{ entry.location }}</span>
+                <span class="text-xs text-[var(--muted)]">{{ formatDateTime(entry.startedAt) }} → {{ entry.endedAt ? formatDateTime(entry.endedAt) : t('bike.current') }}</span>
+              </div>
+              <p v-if="entry.note" class="mt-1 text-sm">{{ entry.note }}</p>
+              <p v-if="entry.actorName" class="mt-1 text-xs text-[var(--muted)]">{{ entry.actorName }}</p>
+            </div>
+          </div>
+          <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noLocationHistory') }}</p>
         </section>
 
         <section class="no-print surface mt-6 p-6">

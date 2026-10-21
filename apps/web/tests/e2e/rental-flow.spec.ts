@@ -468,3 +468,45 @@ describe('document expiry and handover blocking', () => {
     expect((await bikeByCode('BM-008')).status).toBe('rented')
   })
 })
+
+describe('location history', () => {
+  it('records an append-only move on the bike card and rejects invalid moves', async () => {
+    const bikes = await api('/api/bikes')
+    const bike = (bikes.data.bikes as Json[]).find(row => row.assetCode === 'BM-007')
+    expect(bike, 'seed must contain BM-007').toBeTruthy()
+    const token = bike!.qrToken as string
+    expect(token).toBeTruthy()
+
+    const before = await api(`/api/bikes/${encodeURIComponent(token)}/locations`)
+    expect(before.status).toBe(200)
+    const baseline = (before.data.locations as Json[])[0]
+    expect(baseline.location).toBe('Đà Nẵng')
+    expect(baseline.endedAt).toBeNull()
+
+    const moved = await api(`/api/bikes/${encodeURIComponent(token)}/location`, {
+      json: { location: 'Workshop', note: 'Chain inspection' },
+    })
+    expect(moved.status).toBe(200)
+
+    const after = await api(`/api/bikes/${encodeURIComponent(token)}/locations`)
+    const entries = after.data.locations as Json[]
+    expect(entries).toHaveLength(2)
+    expect(entries[0].location).toBe('Workshop')
+    expect(entries[0].endedAt).toBeNull()
+    expect(entries[0].note).toBe('Chain inspection')
+    expect(entries[1].location).toBe('Đà Nẵng')
+    expect(entries[1].endedAt).toBe(entries[0].startedAt)
+
+    const card = await api(`/api/bikes/${encodeURIComponent(token)}`)
+    expect(card.data.location).toBe('Workshop')
+
+    const same = await api(`/api/bikes/${encodeURIComponent(token)}/location`, { json: { location: 'Workshop' } })
+    expect(same.status).toBe(409)
+
+    const invalid = await api(`/api/bikes/${encodeURIComponent(token)}/location`, { json: { location: ' ' } })
+    expect(invalid.status).toBe(400)
+
+    const list = await api('/api/bikes')
+    expect((list.data.bikes as Json[]).find(row => row.assetCode === 'BM-007')?.location).toBe('Workshop')
+  })
+})

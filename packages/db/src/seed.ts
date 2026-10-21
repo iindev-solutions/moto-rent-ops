@@ -1,12 +1,12 @@
 import { config } from 'dotenv'
 import { fileURLToPath } from 'node:url'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { hash } from 'argon2'
 import { randomUUID } from 'node:crypto'
 import { buildBikeDeepLink, canonicalizeLocatorToken } from '@book-moto/domain/qr'
 import { closeDb, getDb } from './client'
 import { decryptLocatorToken, encryptLocatorToken, hashLocatorToken } from './crypto'
-import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
+import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, locationAssignments, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
 
 config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) })
 if (process.env.NODE_ENV === 'production') {
@@ -70,6 +70,23 @@ for (const fixture of fixtures) {
     throw new Error(`Could not create motorcycle ${fixture.assetCode}`)
   }
   bikeIdByCode.set(fixture.assetCode, bike.id)
+
+  const [openAssignment] = await db.select().from(locationAssignments).where(and(
+    eq(locationAssignments.motorcycleId, bike.id),
+    isNull(locationAssignments.endedAt),
+  )).limit(1)
+  if (!openAssignment || openAssignment.location !== fixture.location) {
+    const startedAt = new Date()
+    if (openAssignment) {
+      await db.update(locationAssignments).set({ endedAt: startedAt }).where(eq(locationAssignments.id, openAssignment.id))
+    }
+    await db.insert(locationAssignments).values({
+      motorcycleId: bike.id,
+      location: fixture.location,
+      note: 'Seed baseline',
+      startedAt,
+    })
+  }
 
   let [identity] = await db.select().from(qrIdentities).where(eq(qrIdentities.motorcycleId, bike.id)).limit(1)
   if (!identity) {
