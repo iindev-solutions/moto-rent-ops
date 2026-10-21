@@ -5,8 +5,12 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   await requireAppUser(event)
   const db = await getDb()
+  const { limit, offset } = readPagination(event)
 
   try {
+    const countRows = await db.select({ total: sql<number>`count(*)::int` }).from(clients)
+    const total = countRows[0]?.total ?? 0
+
     const rows = await db
       .select({
         id: clients.id,
@@ -21,9 +25,17 @@ export default defineEventHandler(async (event) => {
       .leftJoin(documentCustodies, eq(documentCustodies.clientId, clients.id))
       .leftJoin(rentalAgreements, eq(rentalAgreements.clientId, clients.id))
       .groupBy(clients.id)
-      .orderBy(desc(clients.createdAt))
+      .orderBy(desc(clients.createdAt), desc(clients.id))
+      .limit(limit)
+      .offset(offset)
 
-    return { clients: rows }
+    return {
+      clients: rows,
+      total,
+      limit,
+      offset,
+      hasMore: offset + rows.length < total,
+    }
   } catch (error) {
     throwApiError(error)
   }

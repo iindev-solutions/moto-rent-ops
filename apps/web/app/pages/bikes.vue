@@ -6,21 +6,44 @@ definePageMeta({ middleware: 'auth' })
 
 const router = useRouter()
 const { t } = useLocale()
+const searchInput = ref('')
 const search = ref('')
+const pageSize = 50
+const limit = ref(pageSize)
 const manualCode = ref('')
 const scannerOpen = ref(false)
 const reissuing = ref(false)
 const reissueId = ref('')
 const lookupError = ref('')
 const actionError = ref('')
-const { data, error, status, refresh } = await useFetch<BikesResponse>('/api/bikes')
 
-const bikes = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  const rows = data.value?.bikes || []
-  if (!query) return rows
-  return rows.filter(bike => [bike.assetCode, bike.model, bike.plate, bike.location].some(value => value?.toLowerCase().includes(query)))
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(searchInput, (value) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    search.value = value.trim()
+    limit.value = pageSize
+  }, 250)
 })
+
+onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
+
+const { data, error, status, refresh } = await useFetch<BikesResponse>(() => {
+  const params = new URLSearchParams({ limit: String(limit.value) })
+  if (search.value) params.set('search', search.value)
+  return `/api/bikes?${params.toString()}`
+})
+
+const bikes = computed(() => data.value?.bikes || [])
+const total = computed(() => data.value?.total ?? bikes.value.length)
+const hasMore = computed(() => data.value?.hasMore ?? false)
+
+function loadMore() {
+  limit.value += pageSize
+}
 
 const statusKeys = {
   available: 'status.available',
@@ -89,26 +112,32 @@ function onScan(value: string) {
 
     <section class="panel overflow-hidden">
       <div class="panel-header">
-        <div><p class="panel-title">{{ t('fleet.title') }}</p><p class="mt-1 text-xs text-[var(--text-muted)]">{{ bikes.length }} {{ t('home.fleet').toLowerCase() }}</p></div>
-        <UInput v-model="search" class="w-full max-w-64" :placeholder="t('fleet.search')" :aria-label="t('fleet.search')" />
+        <div><p class="panel-title">{{ t('fleet.title') }}</p><p class="mt-1 text-xs text-[var(--text-muted)]">{{ bikes.length }} / {{ total }} {{ t('home.fleet').toLowerCase() }}</p></div>
+        <UInput v-model="searchInput" class="w-full max-w-64" :placeholder="t('fleet.search')" :aria-label="t('fleet.search')" />
       </div>
       <div v-if="status === 'pending'" class="space-y-3 p-6"><USkeleton class="h-10 w-full" /><USkeleton class="h-10 w-full" /><USkeleton class="h-10 w-full" /></div>
       <div v-else-if="error" class="p-6">
         <div class="rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-4 text-sm text-[var(--danger)]"><p>{{ t('common.error') }}</p><UButton class="mt-3" variant="outline" @click="refresh()">{{ t('common.retry') }}</UButton></div>
       </div>
-      <div v-else-if="bikes.length" class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>{{ t('fleet.asset') }}</th><th>{{ t('bike.status') }}</th><th>{{ t('bike.location') }}</th><th>{{ t('bike.nextAction') }}</th><th><span class="sr-only">{{ t('common.actions') }}</span></th></tr></thead>
-          <tbody>
-            <tr v-for="bike in bikes" :key="bike.id">
-              <td><div class="font-semibold"><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else>{{ bike.assetCode }} · {{ bike.model }}</span></div><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
-              <td><span class="status-pill" :class="statusTone(bike.status)">{{ statusLabel(bike.status) }}</span></td>
-              <td>{{ bike.location || '—' }}</td>
-              <td>{{ bike.nextAction || '—' }}</td>
-              <td class="text-right"><div class="flex justify-end gap-2"><UButton v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" variant="ghost" size="sm" trailing-icon="i-lucide-arrow-up-right">{{ t('fleet.open') }}</UButton><UButton v-else variant="outline" size="sm" :loading="reissuing && reissueId === bike.id" @click="reissueQr(bike.id)">{{ t('fleet.reissue') }}</UButton></div></td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else-if="bikes.length">
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead><tr><th>{{ t('fleet.asset') }}</th><th>{{ t('bike.status') }}</th><th>{{ t('bike.location') }}</th><th>{{ t('bike.nextAction') }}</th><th><span class="sr-only">{{ t('common.actions') }}</span></th></tr></thead>
+            <tbody>
+              <tr v-for="bike in bikes" :key="bike.id">
+                <td><div class="font-semibold"><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else>{{ bike.assetCode }} · {{ bike.model }}</span></div><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
+                <td><span class="status-pill" :class="statusTone(bike.status)">{{ statusLabel(bike.status) }}</span></td>
+                <td>{{ bike.location || '—' }}</td>
+                <td>{{ bike.nextAction || '—' }}</td>
+                <td class="text-right"><div class="flex justify-end gap-2"><UButton v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" variant="ghost" size="sm" trailing-icon="i-lucide-arrow-up-right">{{ t('fleet.open') }}</UButton><UButton v-else variant="outline" size="sm" :loading="reissuing && reissueId === bike.id" @click="reissueQr(bike.id)">{{ t('fleet.reissue') }}</UButton></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="hasMore" class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] px-6 py-4">
+          <span class="text-xs text-[var(--text-muted)]">{{ bikes.length }} / {{ total }}</span>
+          <UButton class="button-secondary" variant="outline" size="sm" @click="loadMore">{{ t('common.loadMore') }}</UButton>
+        </div>
       </div>
       <div v-else class="empty-state p-8"><div><UIcon name="i-lucide-bike" class="mx-auto size-8 text-[var(--text-muted)]" /><p class="mt-3">{{ t('fleet.empty') }}</p><p class="mt-1 text-xs">{{ t('fleet.scan') }}</p></div></div>
     </section>

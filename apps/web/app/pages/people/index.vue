@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import type { ClientSummary } from '@book-moto/contracts'
+import type { ClientsResponse } from '@book-moto/contracts'
 
 definePageMeta({ middleware: 'auth' })
 
 const { t, tChannel } = useLocale()
 const router = useRouter()
-const { data, error, status, refresh } = await useFetch<{ clients: ClientSummary[] }>('/api/people')
+const pageSize = 50
+const limit = ref(pageSize)
+const { data, error, status, refresh } = await useFetch<ClientsResponse>(() => `/api/people?limit=${limit.value}`)
 
 const createOpen = ref(false)
 const displayName = ref('')
@@ -15,6 +17,12 @@ const pending = ref(false)
 const actionError = ref('')
 
 const clients = computed(() => data.value?.clients || [])
+const total = computed(() => data.value?.total ?? clients.value.length)
+const hasMore = computed(() => data.value?.hasMore ?? false)
+
+function loadMore() {
+  limit.value += pageSize
+}
 
 async function createClient() {
   pending.value = true
@@ -69,6 +77,10 @@ function openCreate() {
           </tr>
         </tbody>
       </table>
+      <div v-if="hasMore" class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] px-6 py-4">
+        <span class="text-xs text-[var(--text-muted)]">{{ clients.length }} / {{ total }}</span>
+        <UButton class="button-secondary" variant="outline" size="sm" @click="loadMore">{{ t('common.loadMore') }}</UButton>
+      </div>
     </div>
     <div v-else class="empty-state"><UIcon name="i-lucide-users" class="mx-auto size-8 text-[var(--text-muted)]" /><p class="mt-3">{{ t('people.empty') }}</p></div>
 

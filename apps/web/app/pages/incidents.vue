@@ -2,7 +2,9 @@
 definePageMeta({ middleware: 'auth' })
 
 const { t, tStatus, tPriority } = useLocale()
-const { data, error, refresh } = await useFetch<any>('/api/incidents')
+const pageSize = 50
+const limit = ref(pageSize)
+const { data, error, refresh } = await useFetch<any>(() => `/api/incidents?limit=${limit.value}`)
 
 const open = ref(false)
 const title = ref('')
@@ -14,6 +16,12 @@ const pendingId = ref('')
 const actionError = ref('')
 
 const incidents = computed(() => data.value?.incidents || [])
+const total = computed(() => data.value?.total ?? incidents.value.length)
+const hasMore = computed(() => data.value?.hasMore ?? false)
+
+function loadMore() {
+  limit.value += pageSize
+}
 
 function openForm() {
   actionError.value = ''
@@ -99,6 +107,10 @@ async function setStatus(id: string, status: string) {
         </table>
       </div>
       <p v-else class="text-sm text-[var(--muted)]">{{ t('incidents.empty') }}</p>
+      <div v-if="hasMore" class="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <span class="text-xs text-[var(--text-muted)]">{{ incidents.length }} / {{ total }}</span>
+        <UButton class="button-secondary" variant="outline" size="sm" @click="loadMore">{{ t('common.loadMore') }}</UButton>
+      </div>
     </section>
   </div>
 </template>

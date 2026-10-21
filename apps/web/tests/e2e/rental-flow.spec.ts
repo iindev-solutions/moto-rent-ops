@@ -510,3 +510,50 @@ describe('location history', () => {
     expect((list.data.bikes as Json[]).find(row => row.assetCode === 'BM-007')?.location).toBe('Workshop')
   })
 })
+
+describe('list pagination', () => {
+  it('paginates people, bikes, incidents and maintenance lists', async () => {
+    const firstPeople = await api('/api/people?limit=2&offset=0')
+    expect(firstPeople.status).toBe(200)
+    expect(firstPeople.data.clients).toHaveLength(2)
+    expect(firstPeople.data.limit).toBe(2)
+    expect(firstPeople.data.total).toBeGreaterThanOrEqual(7)
+    expect(firstPeople.data.hasMore).toBe(true)
+
+    const nextPeople = await api('/api/people?limit=2&offset=2')
+    const firstIds = (firstPeople.data.clients as Json[]).map(row => row.id)
+    const nextIds = (nextPeople.data.clients as Json[]).map(row => row.id)
+    expect(nextIds).toHaveLength(2)
+    expect(nextIds.some(id => firstIds.includes(id))).toBe(false)
+
+    const clamped = await api('/api/people?limit=1000')
+    expect(clamped.data.limit).toBe(200)
+
+    const firstBikes = await api('/api/bikes?limit=3&offset=0')
+    expect(firstBikes.data.bikes).toHaveLength(3)
+    expect(firstBikes.data.total).toBe(10)
+    expect(firstBikes.data.hasMore).toBe(true)
+    const nextBikes = await api('/api/bikes?limit=3&offset=3')
+    const firstBikeIds = (firstBikes.data.bikes as Json[]).map(row => row.id)
+    const nextBikeIds = (nextBikes.data.bikes as Json[]).map(row => row.id)
+    expect(nextBikeIds.some(id => firstBikeIds.includes(id))).toBe(false)
+
+    const search = await api('/api/bikes?search=BM-007')
+    expect(search.data.bikes).toHaveLength(1)
+    expect(search.data.bikes[0].assetCode).toBe('BM-007')
+    expect(search.data.total).toBe(1)
+
+    const incidents = await api('/api/incidents?limit=1')
+    expect(incidents.data.incidents).toHaveLength(1)
+    expect(incidents.data.total).toBeGreaterThanOrEqual(3)
+    expect(incidents.data.hasMore).toBe(true)
+
+    const maintenance = await api('/api/maintenance?limit=1')
+    expect(maintenance.data.orders).toHaveLength(1)
+    expect(maintenance.data.total).toBeGreaterThanOrEqual(3)
+
+    const unordered = await api('/api/bikes?limit=2&offset=-4')
+    expect(unordered.data.offset).toBe(0)
+    expect(unordered.data.bikes).toHaveLength(2)
+  })
+})

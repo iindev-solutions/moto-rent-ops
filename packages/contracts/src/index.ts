@@ -68,9 +68,16 @@ export type DashboardData = {
   upcomingPayments: UpcomingPayment[]
 }
 
+export type PageMeta = {
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
+}
+
 export type BikesResponse = {
   bikes: BikeSummary[]
-}
+} & PageMeta
 
 export type ClientSummary = {
   id: string
@@ -80,6 +87,10 @@ export type ClientSummary = {
   openDocumentCount: number
   activeAgreementCount: number
 }
+
+export type ClientsResponse = {
+  clients: ClientSummary[]
+} & PageMeta
 
 export type ClientContact = {
   id: string
