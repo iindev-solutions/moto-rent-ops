@@ -33,3 +33,7 @@ PGlite persists to `.data/pglite`; the local filesystem storage adapter uses `.d
 - Passport scans are not stored. A physical document is represented by custody events and masked metadata only; cash deposits use the 2M/5M VND options.
 
 See `ROADMAP.md` for the phased delivery plan.
+
+## Known limitations
+
+- Login rate limiting (`server/api/auth/login.post.ts`) keeps attempts in an in-process `Map`. Counters reset on restart and are not shared between instances. This is acceptable for the current single-instance deployment, but must move to a shared store (PostgreSQL or Redis) before running more than one app instance.
