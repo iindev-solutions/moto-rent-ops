@@ -28,8 +28,11 @@ PostgreSQL-воркер/outbox · PWA · `zxing-wasm` с fallback на `BarcodeD
 - Публичный лендинг «MOTORBIKE FOR RENT A. CHÂU» (Đà Nẵng) готов: `app/pages/index.vue`,
   i18n `lp.*` en/vi, стили в `main.css`
 - Лендинг сервер-рендерится (SEO/og), staff-маршруты остались SPA через `routeRules.ssr: false`
-- **P1-1 закрыт**: vitest + `@nuxt/test-utils`, 16 e2e-тестов на жизненный цикл аренды,
-  депозиты, гонку выдачи и негативные 401/404/409; CI гоняет `npm test`
+- **P1-1 закрыт**: vitest + `@nuxt/test-utils`, 18 e2e-тестов на жизненный цикл аренды,
+  депозиты, гонку выдачи, негативные 401/404/409 и месячные оплаты; CI гоняет `npm test`
+- Платежи: дашборд показывает «Upcoming payments» (до 5 будущих остатков в 30 днях);
+  `/payments` — оплаты за месяц (Received + Still due, сводка, prev/next/This month);
+  `GET /api/payments?month=YYYY-MM`; последний коммит `378331d`
 - Дальше по плану: P1-4, P1-5, P2-1, P2-3, P2-4, P2-10
 - Детальные логи: `memory/2026-10-20.md`, `memory/2026-10-21.md`
 
