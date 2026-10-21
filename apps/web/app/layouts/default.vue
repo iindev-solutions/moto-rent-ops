@@ -63,7 +63,7 @@ async function signOut() {
         <span class="workspace-avatar">M</span>
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-semibold">MOTO//OPS</span>
-          <span class="block truncate text-[11px] text-[var(--text-muted)]">{{ t('app.workspace') }}</span>
+          <span class="block truncate text-[12px] text-[var(--text-muted)]">{{ t('app.workspace') }}</span>
         </span>
         <UIcon name="i-lucide-chevrons-up-down" class="size-3.5 text-[var(--text-muted)]" />
       </div>
@@ -95,7 +95,7 @@ async function signOut() {
         <div class="sidebar-status"><span class="status-dot" /> <span>{{ t('common.apiOnline') }}</span></div>
         <button class="user-chip" type="button" @click="signOut">
           <span class="user-avatar">{{ user?.name?.charAt(0) || 'U' }}</span>
-          <span class="min-w-0 flex-1 text-left"><span class="block truncate text-xs font-semibold">{{ user?.name || 'User' }}</span><span class="block truncate text-[10px] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span></span>
+          <span class="min-w-0 flex-1 text-left"><span class="block truncate text-xs font-semibold">{{ user?.name || 'User' }}</span><span class="block truncate text-[11px] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span></span>
           <UIcon name="i-lucide-log-out" class="size-3.5 text-[var(--text-muted)]" />
         </button>
       </div>
@@ -130,8 +130,8 @@ async function signOut() {
                   <span class="user-avatar">{{ user?.name?.charAt(0) || 'U' }}</span>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-sm font-semibold">{{ user?.name || 'User' }}</span>
-                    <span class="block truncate text-[11px] text-[var(--text-muted)]">{{ user?.email || '' }}</span>
-                    <span class="block truncate text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span>
+                    <span class="block truncate text-xs text-[var(--text-muted)]">{{ user?.email || '' }}</span>
+                    <span class="block truncate text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span>
                   </span>
                 </div>
                 <button class="topbar-user-item" type="button" role="menuitem" @click="signOut">

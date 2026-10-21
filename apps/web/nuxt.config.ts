@@ -8,6 +8,11 @@ if (process.env.NODE_ENV !== 'production') {
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  colorMode: {
+    preference: 'light',
+    fallback: 'light',
+    storageKey: 'moto-color-mode',
+  },
   modules: ['@nuxt/ui', '@pinia/nuxt', '@vite-pwa/nuxt', 'nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
   ssr: true,
@@ -39,7 +44,7 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'description', content: 'Motorcycle rental operations, fleet and finance control.' },
-        { name: 'theme-color', content: '#10100f' },
+        { name: 'theme-color', content: '#f6f7f9' },
       ],
     },
   },
@@ -78,8 +83,8 @@ export default defineNuxtConfig({
       short_name: 'MOTO//OPS',
       description: 'Motorcycle rental operations',
       lang: 'en',
-      theme_color: '#10100f',
-      background_color: '#10100f',
+      theme_color: '#f6f7f9',
+      background_color: '#f6f7f9',
       display: 'standalone',
       start_url: '/',
       icons: [
