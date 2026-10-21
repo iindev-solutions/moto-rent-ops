@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import { bigint, boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -125,6 +125,7 @@ export const rentalAgreements = pgTable('rental_agreements', {
 }, (table) => [
   index('rental_agreements_client_idx').on(table.clientId),
   index('rental_agreements_status_idx').on(table.status),
+  check('rental_agreements_dates_chk', sql`${table.endDate} IS NULL OR ${table.startDate} IS NULL OR ${table.endDate} >= ${table.startDate}`),
 ])
 
 export const rentalItems = pgTable('rental_items', {
@@ -141,6 +142,9 @@ export const rentalItems = pgTable('rental_items', {
 }, (table) => [
   index('rental_items_agreement_idx').on(table.agreementId),
   index('rental_items_motorcycle_idx').on(table.motorcycleId),
+  check('rental_items_dates_chk', sql`${table.endDate} >= ${table.startDate}`),
+  check('rental_items_daily_rate_chk', sql`${table.dailyRateMinor} > 0`),
+  check('rental_items_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
 
 export const handovers = pgTable('handovers', {
@@ -173,6 +177,8 @@ export const obligations = pgTable('obligations', {
 }, (table) => [
   index('obligations_client_idx').on(table.clientId),
   index('obligations_agreement_idx').on(table.agreementId),
+  check('obligations_amount_chk', sql`${table.amountMinor} > 0`),
+  check('obligations_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
 
 export const receipts = pgTable('receipts', {
@@ -186,6 +192,8 @@ export const receipts = pgTable('receipts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('receipts_client_idx').on(table.clientId),
+  check('receipts_amount_chk', sql`${table.amountMinor} > 0`),
+  check('receipts_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
 
 export const allocations = pgTable('allocations', {
@@ -197,6 +205,7 @@ export const allocations = pgTable('allocations', {
 }, (table) => [
   index('allocations_receipt_idx').on(table.receiptId),
   index('allocations_obligation_idx').on(table.obligationId),
+  check('allocations_amount_chk', sql`${table.amountMinor} > 0`),
 ])
 
 export const deposits = pgTable('deposits', {
@@ -217,6 +226,9 @@ export const deposits = pgTable('deposits', {
 }, (table) => [
   index('deposits_client_idx').on(table.clientId),
   index('deposits_status_idx').on(table.status),
+  check('deposits_amount_nonnegative_chk', sql`${table.amountMinor} IS NULL OR ${table.amountMinor} >= 0`),
+  check('deposits_cash_amount_chk', sql`${table.type} <> 'cash' OR (${table.amountMinor} IS NOT NULL AND ${table.amountMinor} > 0)`),
+  check('deposits_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
 
 export const idempotencyRecords = pgTable('idempotency_records', {
@@ -255,6 +267,7 @@ export const depositDispositions = pgTable('deposit_dispositions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('deposit_dispositions_deposit_idx').on(table.depositId),
+  check('deposit_dispositions_amount_chk', sql`${table.amountMinor} > 0`),
 ])
 
 export const incidents = pgTable('incidents', {
@@ -301,4 +314,6 @@ export const maintenanceOrders = pgTable('maintenance_orders', {
   index('maintenance_motorcycle_idx').on(table.motorcycleId),
   index('maintenance_status_idx').on(table.status),
   index('maintenance_due_idx').on(table.dueDate),
+  check('maintenance_orders_cost_chk', sql`${table.costMinor} >= 0`),
+  check('maintenance_orders_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])

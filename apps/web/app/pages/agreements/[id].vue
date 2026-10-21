@@ -30,7 +30,7 @@ const blockers = computed(() => data.value?.blockers || [])
 async function addItem() {
   const startIso = localInputToIso(itemStart.value)
   const endIso = localInputToIso(itemEnd.value)
-  if (!selectedBike.value || !startIso || !endIso || new Date(endIso) <= new Date(startIso)) {
+  if (!selectedBike.value || !startIso || !endIso || new Date(endIso) <= new Date(startIso) || dailyRate.value < 1) {
     actionError.value = t('common.error')
     return
   }

@@ -8,7 +8,7 @@ const bodySchema = z.object({
   status: z.enum(['planned', 'due', 'in_progress', 'completed', 'cancelled']).default('planned'),
   dueDate: z.string().datetime().optional(),
   costMinor: z.number().int().min(0).default(0),
-  currency: z.string().trim().length(3).default('VND'),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
   notes: z.string().trim().max(2000).optional(),
 })
 

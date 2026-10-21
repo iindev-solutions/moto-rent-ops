@@ -11,7 +11,7 @@ const allocationSchema = z.object({
 const bodySchema = z.object({
   clientId: z.string().uuid().optional(),
   amountMinor: z.number().int().min(1),
-  currency: z.string().trim().length(3).default('VND'),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
   method: z.string().trim().min(2).max(32).default('cash'),
   receivedAt: z.string().datetime().optional(),
   notes: z.string().trim().max(2000).optional(),

@@ -109,6 +109,18 @@ describe('rental lifecycle', () => {
     }
   })
 
+  it('rejects non-positive obligation amounts at the API boundary', async () => {
+    expect((await api('/api/obligations', { json: { type: 'rent', amountMinor: 0 } })).status).toBe(400)
+    expect((await api('/api/obligations', { json: { type: 'rent', amountMinor: -100 } })).status).toBe(400)
+    expect((await api('/api/rentals/quick', { json: { motorcycleId: '00000000-0000-4000-8000-000000000000', days: 2, dailyRateMinor: 0 } })).status).toBe(400)
+  })
+
+  it('normalizes obligation currency codes to uppercase', async () => {
+    const created = await api('/api/obligations', { json: { type: 'rent_extension', amountMinor: 1000, currency: 'vnd' } })
+    expect(created.status).toBe(200)
+    expect(created.data.obligation.currency).toBe('VND')
+  })
+
   it('returns 404 for unknown rental items and deposits', async () => {
     const unknown = '00000000-0000-4000-8000-000000000000'
     expect((await api(`/api/rentals/items/${unknown}/settlement`)).status).toBe(404)

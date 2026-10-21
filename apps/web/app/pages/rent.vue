@@ -118,6 +118,10 @@ async function submit() {
     actionError.value = t('rent.needDays')
     return
   }
+  if (!rate.value || rate.value < 1) {
+    actionError.value = t('rent.needRate')
+    return
+  }
   if (depositType.value === 'cash' && (!depositAmount.value || depositAmount.value <= 0)) {
     actionError.value = t('rent.needDeposit')
     return
@@ -286,7 +290,7 @@ onMounted(() => {
         <p class="mt-3 text-xs text-[var(--muted)]">{{ formatDateTime(endDate.toISOString()) }}</p>
         <div class="mt-4 grid gap-1">
           <label class="text-xs text-[var(--muted)]" for="rent-rate">{{ t('rent.rate') }}</label>
-          <UInput id="rent-rate" v-model.number="rate" type="number" min="0" step="10000" class="w-full" />
+          <UInput id="rent-rate" v-model.number="rate" type="number" min="1" step="10000" class="w-full" />
         </div>
       </section>
 

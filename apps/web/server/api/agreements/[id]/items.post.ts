@@ -6,8 +6,8 @@ const bodySchema = z.object({
   motorcycleId: z.string().uuid(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
-  dailyRateMinor: z.number().int().min(0).default(0),
-  currency: z.string().trim().length(3).default('VND'),
+  dailyRateMinor: z.number().int().min(1),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
 })
 
 export default defineEventHandler(async (event) => {

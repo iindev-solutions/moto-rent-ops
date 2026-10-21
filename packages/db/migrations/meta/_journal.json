@@ -78,6 +78,13 @@
       "when": 1792597417795,
       "tag": "0010_cloudy_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792598037872,
+      "tag": "0011_pale_legion",
+      "breakpoints": true
     }
   ]
 }
