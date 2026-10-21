@@ -26,11 +26,11 @@ PostgreSQL-воркер/outbox · PWA · `zxing-wasm` с fallback на `BarcodeD
 - Аудит от 19.10: `docs/audit-2026-10-19.html` — 4 P0 / 5 P1 / 11 P2, ~58% пути до R1
 - Все P0 и P1-2/P1-3 закрыты в `d850e8e` (в origin/master)
 - Публичный лендинг «MOTORBIKE FOR RENT A. CHÂU» (Đà Nẵng) готов: `app/pages/index.vue`,
-  i18n `lp.*` en/vi, стили в `main.css`. Typecheck и build проходят
-- Лендинг не отдаётся в HTML: глобальный `ssr: false` (SPA). Для SEO/og-превью нужен SSR
-  для `/` — решение открыто, см. `memory/2026-10-21.md`
-- Открыто: **P1-1 — ноль тестов**, CI гоняет только typecheck
-- Дальше по плану: P1-1, P1-4, P1-5, P2-1, P2-3, P2-4, P2-10
+  i18n `lp.*` en/vi, стили в `main.css`
+- Лендинг сервер-рендерится (SEO/og), staff-маршруты остались SPA через `routeRules.ssr: false`
+- **P1-1 закрыт**: vitest + `@nuxt/test-utils`, 16 e2e-тестов на жизненный цикл аренды,
+  депозиты, гонку выдачи и негативные 401/404/409; CI гоняет `npm test`
+- Дальше по плану: P1-4, P1-5, P2-1, P2-3, P2-4, P2-10
 - Детальные логи: `memory/2026-10-20.md`, `memory/2026-10-21.md`
 
 ## Правила работы здесь
