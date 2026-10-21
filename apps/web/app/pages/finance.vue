@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-const { t, tStatus, tDepositType, tObligationType } = useLocale()
+const { t, tStatus, tDepositType, tObligationType, tMethod } = useLocale()
 const { data, error, refresh } = await useFetch<any>('/api/finance')
 
 const obligationOpen = ref(false)
@@ -117,6 +117,7 @@ async function returnDeposit(depositId: string) {
         <p class="page-subtitle">{{ t('finance.subtitle') }}</p>
       </div>
       <div class="flex flex-wrap gap-2">
+        <UButton class="button-secondary" icon="i-lucide-calendar-range" to="/payments">{{ t('finance.paymentsByMonth') }}</UButton>
         <UButton class="button-secondary" @click="openObligationModal">{{ t('finance.newObligation') }}</UButton>
         <UButton class="button-secondary" @click="openReceiptModal">{{ t('finance.newReceipt') }}</UButton>
         <UButton class="button-primary" @click="openDepositModal">{{ t('finance.newDeposit') }}</UButton>
@@ -131,13 +132,14 @@ async function returnDeposit(depositId: string) {
       <p class="panel-title">{{ t('finance.obligations') }}</p>
       <div v-if="obligations.length" class="mt-4 overflow-x-auto">
         <table class="data-table">
-          <thead><tr><th>{{ t('finance.type') }}</th><th>{{ t('finance.amount') }}</th><th>{{ t('finance.allocated') }}</th><th>{{ t('finance.balance') }}</th><th>{{ t('finance.status') }}</th></tr></thead>
+          <thead><tr><th>{{ t('finance.client') }}</th><th>{{ t('finance.type') }}</th><th>{{ t('finance.amount') }}</th><th>{{ t('finance.balance') }}</th><th>{{ t('finance.dueDate') }}</th><th>{{ t('finance.status') }}</th></tr></thead>
           <tbody>
             <tr v-for="row in obligations" :key="row.id">
+              <td class="font-semibold">{{ row.clientName || t('common.unknown') }}</td>
               <td>{{ tObligationType(row.type) }}</td>
-              <td>{{ formatMoney(row.amountMinor) }}</td>
-              <td>{{ formatMoney(row.allocatedMinor) }}</td>
-              <td>{{ formatMoney(row.balanceMinor) }}</td>
+              <td>{{ formatMoney(row.amountMinor, row.currency) }}</td>
+              <td>{{ formatMoney(row.balanceMinor, row.currency) }}</td>
+              <td>{{ formatDate(row.dueDate) }}</td>
               <td><span class="status-pill" :class="statusTone(row.status)">{{ tStatus(row.status) }}</span></td>
             </tr>
           </tbody>
@@ -150,12 +152,13 @@ async function returnDeposit(depositId: string) {
       <p class="panel-title">{{ t('finance.receipts') }}</p>
       <div v-if="receipts.length" class="mt-4 overflow-x-auto">
         <table class="data-table">
-          <thead><tr><th>{{ t('finance.method') }}</th><th>{{ t('finance.amount') }}</th><th>{{ t('finance.receivedAt') }}</th></tr></thead>
+          <thead><tr><th>{{ t('finance.receivedAt') }}</th><th>{{ t('finance.client') }}</th><th>{{ t('finance.method') }}</th><th>{{ t('finance.amount') }}</th></tr></thead>
           <tbody>
             <tr v-for="row in receipts" :key="row.id">
-              <td class="capitalize">{{ row.method }}</td>
-              <td>{{ formatMoney(row.amountMinor) }}</td>
               <td>{{ formatDateTime(row.receivedAt) }}</td>
+              <td class="font-semibold">{{ row.clientName || t('common.unknown') }}</td>
+              <td>{{ tMethod(row.method) }}</td>
+              <td>{{ formatMoney(row.amountMinor, row.currency) }}</td>
             </tr>
           </tbody>
         </table>
@@ -167,12 +170,13 @@ async function returnDeposit(depositId: string) {
       <p class="panel-title">{{ t('finance.deposits') }}</p>
       <div v-if="deposits.length" class="mt-4 overflow-x-auto">
         <table class="data-table">
-          <thead><tr><th>{{ t('finance.type') }}</th><th>{{ t('finance.amount') }}</th><th>{{ t('finance.remaining') }}</th><th>{{ t('finance.status') }}</th><th>{{ t('finance.receivedAt') }}</th><th></th></tr></thead>
+          <thead><tr><th>{{ t('finance.client') }}</th><th>{{ t('finance.type') }}</th><th>{{ t('finance.amount') }}</th><th>{{ t('finance.remaining') }}</th><th>{{ t('finance.status') }}</th><th>{{ t('finance.receivedAt') }}</th><th></th></tr></thead>
           <tbody>
             <tr v-for="row in deposits" :key="row.id">
+              <td class="font-semibold">{{ row.clientName || t('common.unknown') }}</td>
               <td>{{ tDepositType(row.type) }}</td>
-              <td>{{ formatMoney(row.amountMinor) }}</td>
-              <td>{{ formatMoney(row.remainingMinor) }}</td>
+              <td>{{ formatMoney(row.amountMinor, row.currency) }}</td>
+              <td>{{ formatMoney(row.remainingMinor, row.currency) }}</td>
               <td><span class="status-pill" :class="statusTone(row.status)">{{ tStatus(row.status) }}</span></td>
               <td>{{ formatDateTime(row.receivedAt) }}</td>
               <td class="text-right">

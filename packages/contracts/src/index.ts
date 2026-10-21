@@ -46,6 +46,16 @@ export type TodayQueue = {
   depositsPending: TodayQueueEntry[]
 }
 
+export type UpcomingPayment = {
+  id: string
+  clientName: string | null
+  type: string
+  amountMinor: number
+  balanceMinor: number
+  currency: string
+  dueDate: string
+}
+
 export type DashboardData = {
   stats: {
     total: number
@@ -55,6 +65,7 @@ export type DashboardData = {
   }
   recentBikes: BikeSummary[]
   queues: TodayQueue
+  upcomingPayments: UpcomingPayment[]
 }
 
 export type BikesResponse = {
@@ -160,6 +171,31 @@ export type DepositSummaryV2 = {
   clientId: string
   receivedAt: string
   returnedAt: string | null
+}
+
+export type PaymentReceipt = ReceiptSummary & {
+  clientName: string | null
+}
+
+export type PaymentDue = ObligationSummary & {
+  clientName: string | null
+  dueDate: string
+}
+
+export type PaymentsData = {
+  month: string
+  receipts: PaymentReceipt[]
+  due: PaymentDue[]
+  totals: {
+    receivedMinor: number
+    dueMinor: number
+    overdueMinor: number
+  }
+  counts: {
+    receipts: number
+    due: number
+    overdue: number
+  }
 }
 
 export type QuickRentalResult = {

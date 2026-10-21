@@ -18,6 +18,7 @@ const visibleBikes = computed(() => {
   return bikes.filter(bike => [bike.assetCode, bike.model, bike.plate, bike.location].some(value => value?.toLowerCase().includes(query)))
 })
 const queues = computed(() => dashboard.value?.queues || { handovers: [], returns: [], activeRentals: [], overdueObligations: [], maintenanceDue: [], openIncidents: [], depositsPending: [] })
+const upcomingPayments = computed(() => dashboard.value?.upcomingPayments || [])
 
 function dueLabel(date: string | null) {
   if (!date) return ''
@@ -258,19 +259,40 @@ async function exportCsv() {
         <div v-else class="empty-state">{{ t('dashboard.noRecords') }}</div>
       </div>
 
-      <aside class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('dashboard.quickActions') }}</p><UIcon name="i-lucide-zap" class="size-4 text-[var(--accent)]" /></div>
-        <div class="panel-body space-y-2">
-          <NuxtLink to="/rent" class="quick-action w-full"><UIcon name="i-lucide-key-round" class="size-4" /><span>{{ t('nav.rentOut') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
-          <NuxtLink to="/return" class="quick-action w-full"><UIcon name="i-lucide-undo-2" class="size-4" /><span>{{ t('nav.returnBike') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
-          <button class="quick-action w-full" type="button" @click="scannerOpen = true"><UIcon name="i-lucide-scan-line" class="size-4" /><span>{{ t('home.scan') }}</span></button>
-          <NuxtLink to="/bikes" class="quick-action w-full"><UIcon name="i-lucide-bike" class="size-4" /><span>{{ t('fleet.title') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
-          <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <UInput v-model="manualCode" class="w-full" :placeholder="t('home.placeholder')" :aria-label="t('home.lookup')" @keyup.enter="openManualLookup" />
-            <UButton class="button-secondary" @click="openManualLookup">{{ t('home.open') }}</UButton>
+      <aside class="min-w-0">
+        <section class="panel overflow-hidden">
+          <div class="panel-header"><p class="panel-title">{{ t('dashboard.quickActions') }}</p><UIcon name="i-lucide-zap" class="size-4 text-[var(--accent)]" /></div>
+          <div class="panel-body space-y-2">
+            <NuxtLink to="/rent" class="quick-action w-full"><UIcon name="i-lucide-key-round" class="size-4" /><span>{{ t('nav.rentOut') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
+            <NuxtLink to="/return" class="quick-action w-full"><UIcon name="i-lucide-undo-2" class="size-4" /><span>{{ t('nav.returnBike') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
+            <button class="quick-action w-full" type="button" @click="scannerOpen = true"><UIcon name="i-lucide-scan-line" class="size-4" /><span>{{ t('home.scan') }}</span></button>
+            <NuxtLink to="/bikes" class="quick-action w-full"><UIcon name="i-lucide-bike" class="size-4" /><span>{{ t('fleet.title') }}</span><UIcon name="i-lucide-arrow-up-right" class="ml-auto size-3.5" /></NuxtLink>
+            <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <UInput v-model="manualCode" class="w-full" :placeholder="t('home.placeholder')" :aria-label="t('home.lookup')" @keyup.enter="openManualLookup" />
+              <UButton class="button-secondary" @click="openManualLookup">{{ t('home.open') }}</UButton>
+            </div>
+            <p v-if="scannerError" class="text-xs text-[var(--danger)]" role="alert">{{ scannerError }}</p>
           </div>
-          <p v-if="scannerError" class="text-xs text-[var(--danger)]" role="alert">{{ scannerError }}</p>
-        </div>
+        </section>
+
+        <section class="panel mt-6 overflow-hidden">
+          <div class="panel-header">
+            <p class="panel-title">{{ t('payments.upcoming') }}</p>
+            <NuxtLink to="/payments" class="panel-link">{{ t('payments.expand') }}</NuxtLink>
+          </div>
+          <div class="panel-body">
+            <div v-if="upcomingPayments.length" class="space-y-1">
+              <NuxtLink v-for="item in upcomingPayments" :key="item.id" :to="`/payments?month=${item.dueDate.slice(0, 7)}`" class="queue-item">
+                <div class="flex items-baseline justify-between gap-3">
+                  <p class="truncate font-semibold">{{ item.clientName || t('common.unknown') }}</p>
+                  <p class="shrink-0 font-mono text-xs font-bold">{{ formatMoney(item.balanceMinor, item.currency) }}</p>
+                </div>
+                <p class="text-xs text-[var(--muted)]">{{ tObligationType(item.type) }} · {{ formatDate(item.dueDate) }} · {{ dueLabel(item.dueDate) }}</p>
+              </NuxtLink>
+            </div>
+            <p v-else class="today-empty">{{ t('payments.none') }}</p>
+          </div>
+        </section>
       </aside>
     </section>
 

@@ -61,10 +61,52 @@ describe('rental lifecycle', () => {
   it('rejects unauthenticated API access', async () => {
     const { status } = await api('/api/bikes')
     expect(status).toBe(401)
+    expect((await api('/api/payments')).status).toBe(401)
   })
 
   it('logs the seeded owner in', async () => {
     await login()
+  })
+
+  it('returns monthly payments with payer names and a month filter', async () => {
+    const now = new Date()
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const current = await api(`/api/payments?month=${month}`)
+    expect(current.status).toBe(200)
+    expect(current.data.month).toBe(month)
+    expect(Array.isArray(current.data.receipts)).toBe(true)
+    expect(Array.isArray(current.data.due)).toBe(true)
+    expect(current.data.totals.receivedMinor).toBe(current.data.receipts.reduce((total: number, row: Json) => total + row.amountMinor, 0))
+
+    for (const row of current.data.receipts) {
+      expect(row.clientName).toBeTruthy()
+      expect(row.receivedAt).toBeTruthy()
+      expect(row.method).toBeTruthy()
+    }
+    for (const row of current.data.due) {
+      expect(row.clientName).toBeTruthy()
+      expect(row.dueDate).toBeTruthy()
+      expect(row.balanceMinor).toBeGreaterThan(0)
+    }
+
+    const empty = await api('/api/payments?month=2000-01')
+    expect(empty.status).toBe(200)
+    expect(empty.data.month).toBe('2000-01')
+    expect(empty.data.receipts).toEqual([])
+    expect(empty.data.due).toEqual([])
+    expect(empty.data.totals).toEqual({ receivedMinor: 0, dueMinor: 0, overdueMinor: 0 })
+  })
+
+  it('exposes upcoming payments on the dashboard', async () => {
+    const { status, data } = await api('/api/dashboard')
+    expect(status).toBe(200)
+    expect(Array.isArray(data.upcomingPayments)).toBe(true)
+    expect(data.upcomingPayments.length).toBeGreaterThan(0)
+    for (const row of data.upcomingPayments) {
+      expect(row.clientName).toBeTruthy()
+      expect(row.balanceMinor).toBeGreaterThan(0)
+      expect(new Date(row.dueDate).getTime()).toBeGreaterThanOrEqual(new Date().setHours(0, 0, 0, 0))
+    }
   })
 
   it('returns 404 for unknown rental items and deposits', async () => {

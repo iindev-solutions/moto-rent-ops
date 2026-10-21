@@ -21,6 +21,7 @@ const navGroups = [
     labelKey: 'nav.operations',
     items: [
       { labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance', enabled: true },
+      { labelKey: 'nav.payments', icon: 'i-lucide-receipt', to: '/payments', enabled: true },
       { labelKey: 'nav.documents', icon: 'i-lucide-folder-lock', to: '/documents', enabled: true },
       { labelKey: 'nav.maintenance', icon: 'i-lucide-wrench', to: '/maintenance', enabled: true },
       { labelKey: 'nav.incidents', icon: 'i-lucide-alert-triangle', to: '/incidents', enabled: true },
@@ -35,6 +36,7 @@ const pageTitle = computed(() => {
   if (route.path.startsWith('/bikes')) return t('fleet.title')
   if (route.path.startsWith('/people')) return t('people.title')
   if (route.path.startsWith('/finance')) return t('finance.title')
+  if (route.path.startsWith('/payments')) return t('payments.title')
   if (route.path.startsWith('/rentals')) return t('rentals.title')
   if (route.path.startsWith('/rent')) return t('nav.rentOut')
   if (route.path.startsWith('/return')) return t('nav.returnBike')

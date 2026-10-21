@@ -126,14 +126,20 @@ button.topbar-avatar:focus-visible { outline: 3px solid color-mix(in srgb, var(-
 .panel-title { display: flex; align-items: center; gap: 8px; font-size: 0.98rem; font-weight: 750; letter-spacing: -0.01em; }
 .panel-title::before { content: ""; flex: 0 0 auto; width: 3px; height: 15px; border-radius: 999px; background: var(--accent); }
 .panel-body { padding: 16px; }
+.panel-link { color: var(--accent); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.panel-link:hover { text-decoration: underline; }
 .stat-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stat-card { min-height: 108px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); padding: 14px; }
+.pay-summary { display: grid; gap: 12px; margin-top: 24px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pay-metric { border: 1px solid var(--border); border-radius: 9px; background: var(--panel); padding: 14px; }
+.pay-value { margin-top: 10px; font-size: 1.35rem; font-weight: 750; letter-spacing: -0.03em; }
 .stat-value { margin-top: 12px; font-size: 1.9rem; font-weight: 750; letter-spacing: -0.05em; }
 .content-grid { display: grid; gap: 12px; margin-top: 12px; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.8fr); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 .data-table th { border-bottom: 1px solid var(--border); padding: 10px 12px; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700; text-align: left; text-transform: uppercase; }
 .data-table td { border-bottom: 1px solid var(--border); padding: 12px; vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: 0; }
+.data-table tfoot td { border-top: 1px solid var(--border-strong); border-bottom: 0; padding: 10px 12px; font-weight: 700; }
 .data-table tbody tr:hover { background: var(--panel-muted); }
 .queue-item { display: block; border-radius: 8px; padding: 8px 10px; margin: 0 -8px; transition: background 150ms ease; }
 .queue-item:hover { background: var(--panel-muted); }
@@ -186,8 +192,11 @@ button.topbar-avatar:focus-visible { outline: 3px solid color-mix(in srgb, var(-
   .page-actions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat-card { min-height: 96px; padding: 12px; }
+  .pay-summary { grid-template-columns: 1fr; }
   .content-grid { grid-template-columns: 1fr; }
   .today-grid { grid-template-columns: 1fr; gap: 18px; }
+  .data-table { font-size: 0.78rem; }
+  .data-table th, .data-table td { padding: 8px; }
   .app-topbar { min-height: 56px; }
 }
 

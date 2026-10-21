@@ -8,6 +8,8 @@ const tones: Record<string, string> = {
   retired: 'is-danger',
   settled: 'is-success',
   partial: 'is-warning',
+  partially_allocated: 'is-warning',
+  planned: 'is-accent',
   overdue: 'is-danger',
   returned: 'is-success',
   closed: 'is-success',

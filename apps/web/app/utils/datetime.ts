@@ -22,6 +22,27 @@ export function formatDateTime(value: string | Date | null | undefined): string 
   })
 }
 
+export function formatDate(value: string | Date | null | undefined): string {
+  if (!value) return '—'
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+}
+
+export function formatMonthLabel(month: string, locale: string = 'en'): string {
+  const year = Number(month.slice(0, 4))
+  const monthNumber = Number(month.slice(5, 7))
+  if (!year || !monthNumber) return month
+  return new Date(year, monthNumber - 1, 1).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 export function calendarDaysUntil(value: string | Date | null | undefined): number | null {
   if (!value) return null
   const date = typeof value === 'string' ? new Date(value) : value
