@@ -1,6 +1,7 @@
 import { desc, eq, inArray } from 'drizzle-orm'
 import type { RentalItemSettlement, SettlementObligation } from '@book-moto/contracts'
 import { getDb, rentalItems, rentalAgreements, motorcycles, obligations, allocations, deposits, depositDispositions, documentCustodies } from '@book-moto/db'
+import { auditCustodyRead } from '../../../../utils/pii-audit'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -116,6 +117,10 @@ export default defineEventHandler(async (event) => {
       totalDueMinor,
       deposit: depositSummary,
       document,
+    }
+
+    if (document) {
+      await auditCustodyRead(db, user.id, 'settlement', document.id)
     }
 
     return { settlement }

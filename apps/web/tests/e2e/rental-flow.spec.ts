@@ -642,3 +642,39 @@ describe('agreement version history', () => {
     expect((await api('/api/agreements/00000000-0000-4000-8000-000000000000/versions')).status).toBe(404)
   })
 })
+
+describe('document PII access auditing', () => {
+  it('audits masked requisites disclosure and custody reads', async () => {
+    const people = await api('/api/people?limit=50')
+    const expiryClient = (people.data.clients as Json[]).find(client => client.displayName === 'Expiry Rider')
+    expect(expiryClient, 'the document test must create Expiry Rider').toBeTruthy()
+
+    const detail = await api(`/api/people/${expiryClient!.id}`)
+    expect(detail.status).toBe(200)
+    const document = (detail.data.documents as Json[]).find(row => row.maskedNumber)
+    expect(document, 'Expiry Rider must hold a document with a masked number').toBeTruthy()
+
+    const peopleAudit = await api(`/api/audit?action=document.masked_requisites_viewed&entityId=${document!.id}`)
+    expect(peopleAudit.status).toBe(200)
+    expect((peopleAudit.data.events as Json[]).some(row => row.metadata.source === 'people.detail')).toBe(true)
+
+    expect((await api('/api/documents')).status).toBe(200)
+    const listAudit = await api(`/api/audit?action=document.masked_requisites_viewed&entityId=${document!.id}`)
+    expect((listAudit.data.events as Json[]).some(row => row.metadata.source === 'documents.list')).toBe(true)
+
+    const agreements = detail.data.agreements as Json[]
+    expect(agreements).toHaveLength(1)
+    const agreementDetail = await api(`/api/agreements/${agreements[0].id}`)
+    const itemId = (agreementDetail.data.items as Json[])[0].id as string
+    const settlement = await api(`/api/rentals/items/${itemId}/settlement`)
+    expect(settlement.status).toBe(200)
+    expect(settlement.data.settlement.document).toBeTruthy()
+    const custodyId = settlement.data.settlement.document.id as string
+
+    const custodyAudit = await api(`/api/audit?action=document.custody_viewed&entityId=${custodyId}`)
+    expect(custodyAudit.status).toBe(200)
+    expect((custodyAudit.data.events as Json[]).some(row => row.metadata.source === 'settlement')).toBe(true)
+
+    expect((await api('/api/audit?entityId=not-a-uuid')).status).toBe(400)
+  })
+})

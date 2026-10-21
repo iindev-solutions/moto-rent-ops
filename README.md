@@ -31,6 +31,7 @@ PGlite persists to `.data/pglite`; the local filesystem storage adapter uses `.d
 - Financial state is derived from immutable facts; there is no `paid` boolean.
 - Worker/outbox is a separate process.
 - Passport scans are not stored. A physical document is represented by custody events and masked metadata only; cash deposits use the 2M/5M VND options.
+- Reads that disclose masked document requisites (documents list, client card) or custody metadata (settlement) write an `audit_events` row before the response is returned; the log is readable by owners and admins via `GET /api/audit`.
 
 See `ROADMAP.md` for the phased delivery plan.
 

@@ -1,10 +1,11 @@
 import { count, eq, inArray } from 'drizzle-orm'
 import { getDb, attachments, clients, clientContacts, documentCustodies, rentalAgreements, rentalItems } from '@book-moto/db'
 import { documentExpiryStatus } from '../../../../server/utils/documents'
+import { auditMaskedRequisitesRead } from '../../../../server/utils/pii-audit'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
-  await requireAppUser(event)
+  const user = await requireAppUser(event)
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Client id is required' })
 
@@ -58,6 +59,8 @@ export default defineEventHandler(async (event) => {
         attachmentsByDocument.set(row.entityId, list)
       }
     }
+
+    await auditMaskedRequisitesRead(db, user.id, 'people.detail', documents)
 
     return {
       client: {
