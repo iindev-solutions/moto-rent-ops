@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { and, eq, gt, inArray, lt } from 'drizzle-orm'
 import { getDb, rentalItems, rentalAgreements, motorcycles, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   motorcycleId: z.string().uuid(),
@@ -63,6 +64,8 @@ export default defineEventHandler(async (event) => {
         location: bike.location,
         metadata: { motorcycleId: parsed.data.motorcycleId, assetCode: bike.assetCode },
       })
+
+      await advanceAgreementVersion(tx, agreementId, {}, 'item_added', user.id)
 
       return row
     })

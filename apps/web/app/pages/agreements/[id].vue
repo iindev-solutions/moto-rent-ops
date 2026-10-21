@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AgreementVersion } from '@book-moto/contracts'
+
 definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
@@ -6,6 +8,24 @@ const { t, tStatus } = useLocale()
 const id = computed(() => String(route.params.id))
 const { data, error, refresh } = await useFetch<any>(() => `/api/agreements/${id.value}`)
 const { data: bikesData } = await useFetch<{ bikes: any[] }>('/api/bikes')
+const { data: versionsData } = await useFetch<{ versions: AgreementVersion[] }>(() => `/api/agreements/${id.value}/versions`)
+
+const versionReasonKeys = {
+  created: 'version.created',
+  item_added: 'version.itemAdded',
+  ready: 'version.ready',
+  handover: 'version.handover',
+  extended: 'version.extended',
+  item_returned: 'version.itemReturned',
+  returned: 'version.returned',
+  cancelled: 'version.cancelled',
+  closed: 'version.closed',
+} as const
+
+function versionReason(reason: string) {
+  const key = versionReasonKeys[reason as keyof typeof versionReasonKeys]
+  return key ? t(key) : reason
+}
 
 const itemOpen = ref(false)
 const selectedBike = ref('')
@@ -26,6 +46,7 @@ const returnPhotoFile = ref<File | null>(null)
 const agreement = computed(() => data.value?.agreement)
 const items = computed(() => data.value?.items || [])
 const blockers = computed(() => data.value?.blockers || [])
+const versions = computed(() => versionsData.value?.versions || [])
 
 async function addItem() {
   const startIso = localInputToIso(itemStart.value)
@@ -215,6 +236,17 @@ async function handover(itemId: string) {
       <div v-if="cancelOpen" class="mt-4 grid gap-2">
         <UInput v-model="cancelReason" class="w-full" :placeholder="t('people.cancelReason')" />
         <div class="flex gap-2"><UButton class="button-primary" size="sm" :loading="pending" @click="cancelAgreement">{{ t('people.confirmCancel') }}</UButton><UButton size="sm" variant="ghost" @click="cancelOpen = false">{{ t('common.cancel') }}</UButton></div>
+      </div>
+    </section>
+
+    <section v-if="versions.length" class="panel mt-6 p-6">
+      <p class="panel-title">{{ t('agreement.versions') }}</p>
+      <div class="mt-3 space-y-2">
+        <div v-for="version in versions" :key="version.id" class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] py-2 text-sm last:border-b-0">
+          <span class="font-mono font-semibold">v{{ version.version }}</span>
+          <span class="text-xs text-[var(--muted)]">{{ versionReason(version.changeReason) }} · {{ version.itemCount }} {{ t('people.items') }} · {{ formatDateTime(version.createdAt) }}</span>
+          <span class="status-pill">{{ tStatus(version.status) }}</span>
+        </div>
       </div>
     </section>
 

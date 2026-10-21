@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { and, eq, gt, inArray, lt } from 'drizzle-orm'
 import { getDb, clients, clientContacts, rentalAgreements, rentalItems, motorcycles, handovers, obligations, deposits, documentCustodies, auditEvents } from '@book-moto/db'
+import { appendAgreementVersion } from '../../../server/utils/agreement-versions'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_DEPOSIT_MINOR = 2_000_000
@@ -99,6 +100,8 @@ export default defineEventHandler(async (event) => {
         status: 'active',
       }).returning()
       if (!item) throw createError({ statusCode: 500, statusMessage: 'Could not create rental item' })
+
+      await appendAgreementVersion(tx, agreement, 'created', user.id)
 
       const [handover] = await tx.insert(handovers).values({
         rentalItemId: item.id,

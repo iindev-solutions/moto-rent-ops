@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { buildBikeDeepLink, canonicalizeLocatorToken } from '@book-moto/domain/qr'
 import { closeDb, getDb } from './client'
 import { decryptLocatorToken, encryptLocatorToken, hashLocatorToken } from './crypto'
-import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, locationAssignments, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
+import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, locationAssignments, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreementVersions, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
 
 config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) })
 if (process.env.NODE_ENV === 'production') {
@@ -128,6 +128,31 @@ function expectRow<T>(row: T | undefined, message: string): T {
   return row
 }
 
+function agreementSnapshot(
+  agreement: typeof rentalAgreements.$inferSelect,
+  items: Array<typeof rentalItems.$inferSelect>,
+) {
+  return {
+    agreement: {
+      id: agreement.id,
+      clientId: agreement.clientId,
+      status: agreement.status,
+      startDate: agreement.startDate ? agreement.startDate.toISOString() : null,
+      endDate: agreement.endDate ? agreement.endDate.toISOString() : null,
+      notes: agreement.notes,
+    },
+    items: items.map(item => ({
+      id: item.id,
+      motorcycleId: item.motorcycleId,
+      startDate: item.startDate.toISOString(),
+      endDate: item.endDate.toISOString(),
+      dailyRateMinor: item.dailyRateMinor,
+      currency: item.currency,
+      status: item.status,
+    })),
+  }
+}
+
 const demoMarkerName = 'Nguyễn Văn Hùng'
 const [existingDemoClient] = await db.select({ id: clients.id }).from(clients).where(eq(clients.displayName, demoMarkerName)).limit(1)
 
@@ -195,9 +220,9 @@ if (existingDemoClient) {
     clientId: yuki.id, status: 'ready', startDate: at(2), endDate: at(9), notes: 'Weekend rental, pickup on Saturday morning.',
   }).returning())[0], 'Could not create agreement for Yuki')
 
-  await db.insert(rentalAgreements).values({
+  const agreementChau = expectRow((await db.insert(rentalAgreements).values({
     clientId: chau.id, status: 'draft', notes: 'Asked about a CB300R for next weekend.',
-  })
+  }).returning())[0], 'Could not create agreement for Châu')
 
   const itemHung = expectRow((await db.insert(rentalItems).values({
     agreementId: agreementHung.id, motorcycleId: bikeId('BM-004'), startDate: at(-3), endDate: at(4), dailyRateMinor: 350000, status: 'active',
@@ -211,9 +236,27 @@ if (existingDemoClient) {
     agreementId: agreementQuan.id, motorcycleId: bikeId('BM-006'), startDate: at(-20), endDate: at(-13), dailyRateMinor: 220000, status: 'returned',
   }).returning())[0], 'Could not create rental item for Quân')
 
-  await db.insert(rentalItems).values({
+  const itemYuki = expectRow((await db.insert(rentalItems).values({
     agreementId: agreementYuki.id, motorcycleId: bikeId('BM-007'), startDate: at(2), endDate: at(9), dailyRateMinor: 450000, status: 'planned',
-  })
+  }).returning())[0], 'Could not create rental item for Yuki')
+
+  await db.insert(rentalAgreementVersions).values([
+    { agreement: agreementHung, items: [itemHung], actorUserId: adminUser.id },
+    { agreement: agreementDaniel, items: [itemDaniel], actorUserId: adminUser.id },
+    { agreement: agreementQuan, items: [itemQuan], actorUserId: adminUser.id },
+    { agreement: agreementYuki, items: [itemYuki], actorUserId: adminUser.id },
+    { agreement: agreementChau, items: [], actorUserId: adminUser.id },
+  ].map(({ agreement, items, actorUserId }) => ({
+    agreementId: agreement.id,
+    version: agreement.version,
+    status: agreement.status,
+    changeReason: 'created',
+    startDate: agreement.startDate,
+    endDate: agreement.endDate,
+    notes: agreement.notes,
+    snapshot: agreementSnapshot(agreement, items),
+    createdByUserId: actorUserId,
+  })))
 
   await db.insert(handovers).values([
     { rentalItemId: itemHung.id, motorcycleId: bikeId('BM-004'), performedByUserId: adminUser.id, odometer: 12450, fuelLevel: 'full', checklist: { helmets: 2, phoneMount: true, damage: 'Minor scratch on left fairing' }, createdAt: at(-3) },

@@ -7,6 +7,7 @@ type Json = Record<string, any>
 
 let cookie = ''
 let firstRental: Json = {}
+let extensionAgreementId = ''
 
 interface ApiResult {
   status: number
@@ -314,6 +315,7 @@ describe('deposit scoping', () => {
       },
     })
     expect(rental.status).toBe(200)
+    extensionAgreementId = rental.data.rental.agreementId
 
     const itemId = rental.data.rental.itemId
     const before = (await api(`/api/rentals/items/${itemId}/settlement`)).data.settlement
@@ -555,5 +557,88 @@ describe('list pagination', () => {
     const unordered = await api('/api/bikes?limit=2&offset=-4')
     expect(unordered.data.offset).toBe(0)
     expect(unordered.data.bikes).toHaveLength(2)
+  })
+})
+
+describe('agreement version history', () => {
+  it('appends immutable versions for every material agreement change', async () => {
+    const active = await api('/api/rentals/active')
+    const seedRental = (active.data.rentals as Json[]).find(row => row.assetCode === 'BM-004')
+    expect(seedRental, 'the seed must keep BM-004 on an active rental').toBeTruthy()
+    expect((await api(`/api/rentals/items/${seedRental!.itemId}/return`, { json: {} })).status).toBe(200)
+
+    const documentRental = (active.data.rentals as Json[]).find(row => row.assetCode === 'BM-008')
+    expect(documentRental, 'the document test must leave BM-008 rented').toBeTruthy()
+    expect((await api(`/api/rentals/items/${documentRental!.itemId}/return`, { json: {} })).status).toBe(200)
+
+    expect((await bikeByCode('BM-004')).status).toBe('available')
+    expect((await bikeByCode('BM-008')).status).toBe('available')
+
+    const created = await api('/api/people', {
+      json: {
+        displayName: 'Version Rider',
+        contacts: [{ channel: 'phone', value: '+84 900 000 008', isPrimary: true }],
+      },
+    })
+    expect(created.status).toBe(200)
+    const clientId = created.data.client.id as string
+
+    const document = await api(`/api/people/${clientId}/documents`, {
+      json: { documentType: 'passport', maskedNumber: 'V-001', expiresAt: new Date(Date.now() + 90 * 86_400_000).toISOString() },
+    })
+    expect(document.status).toBe(200)
+
+    const start = new Date(Date.now() + 30 * 86_400_000)
+    const end = new Date(start.getTime() + 7 * 86_400_000)
+    const agreement = await api(`/api/people/${clientId}/agreements`, {
+      json: { startDate: start.toISOString(), endDate: end.toISOString(), notes: 'Versioned contract' },
+    })
+    expect(agreement.status).toBe(200)
+    const agreementId = agreement.data.agreement.id as string
+    expect(agreement.data.agreement.version).toBe(1)
+
+    const first = await api(`/api/agreements/${agreementId}/items`, {
+      json: { motorcycleId: (await bikeByCode('BM-004')).id, startDate: start.toISOString(), endDate: end.toISOString(), dailyRateMinor: 100_000 },
+    })
+    expect(first.status).toBe(200)
+    const second = await api(`/api/agreements/${agreementId}/items`, {
+      json: { motorcycleId: (await bikeByCode('BM-008')).id, startDate: start.toISOString(), endDate: end.toISOString(), dailyRateMinor: 120_000 },
+    })
+    expect(second.status).toBe(200)
+    const firstItemId = first.data.item.id as string
+    const secondItemId = second.data.item.id as string
+
+    expect((await api(`/api/agreements/${agreementId}/ready`, { json: {} })).status).toBe(200)
+    expect((await api(`/api/rentals/items/${firstItemId}/handover`, { json: { odometer: 5000 } })).status).toBe(200)
+    expect((await api(`/api/rentals/items/${firstItemId}/return`, { json: { odometer: 5200 } })).status).toBe(200)
+    expect((await api(`/api/rentals/items/${secondItemId}/handover`, { json: { odometer: 5100 } })).status).toBe(200)
+    expect((await api(`/api/rentals/items/${secondItemId}/return`, { json: { odometer: 5300 } })).status).toBe(200)
+    expect((await api(`/api/agreements/${agreementId}/close`, { json: { reason: 'Version history test' } })).status).toBe(200)
+
+    const versions = await api(`/api/agreements/${agreementId}/versions`)
+    expect(versions.status).toBe(200)
+    const rows = versions.data.versions as Json[]
+    expect(rows.map(row => row.changeReason)).toEqual([
+      'closed', 'returned', 'handover', 'item_returned', 'handover', 'ready', 'item_added', 'item_added', 'created',
+    ])
+    expect(rows.map(row => row.version)).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1])
+    expect(rows.map(row => row.itemCount)).toEqual([2, 2, 2, 2, 2, 2, 2, 1, 0])
+    expect(rows[0].status).toBe('closed')
+    expect(rows[1].status).toBe('returned')
+    expect(rows[3].status).toBe('active')
+    expect(rows[4].status).toBe('active')
+    expect(rows[5].status).toBe('ready')
+    expect(rows[8].status).toBe('draft')
+
+    const detail = await api(`/api/agreements/${agreementId}`)
+    expect(detail.data.agreement.version).toBe(9)
+
+    const quickVersions = await api(`/api/agreements/${firstRental.agreementId}/versions`)
+    expect((quickVersions.data.versions as Json[]).map(row => row.changeReason)).toEqual(['closed', 'returned', 'created'])
+
+    const extensionVersions = await api(`/api/agreements/${extensionAgreementId}/versions`)
+    expect((extensionVersions.data.versions as Json[]).map(row => row.changeReason)).toEqual(['returned', 'extended', 'created'])
+
+    expect((await api('/api/agreements/00000000-0000-4000-8000-000000000000/versions')).status).toBe(404)
   })
 })

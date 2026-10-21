@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { getDb, rentalItems, rentalAgreements, motorcycles, obligations, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../../server/utils/agreement-versions'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
       await tx.update(rentalItems).set({ endDate: newEndDate, updatedAt: new Date() }).where(eq(rentalItems.id, itemId))
 
       const agreementEndDate = agreement.endDate && agreement.endDate > newEndDate ? agreement.endDate : newEndDate
-      await tx.update(rentalAgreements).set({ endDate: agreementEndDate, updatedAt: new Date() }).where(eq(rentalAgreements.id, agreement.id))
+      await advanceAgreementVersion(tx, agreement.id, { endDate: agreementEndDate }, 'extended', user.id)
 
       // Extension is a new immutable financial fact. Never mutate the original rent obligation.
       const extensionAmountMinor = item.dailyRateMinor * parsed.data.days

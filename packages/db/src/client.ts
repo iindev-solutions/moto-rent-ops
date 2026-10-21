@@ -10,6 +10,9 @@ import * as schema from './schema'
 
 export type AppDatabase = PgliteDatabase<typeof schema> | NodePgDatabase<typeof schema>
 
+/** Transaction handle passed to `db.transaction()` callbacks. */
+export type DbTransaction = Parameters<Parameters<AppDatabase['transaction']>[0]>[0]
+
 let pool: Pool | undefined
 let pglite: PGlite | undefined
 let dbPromise: Promise<AppDatabase> | undefined

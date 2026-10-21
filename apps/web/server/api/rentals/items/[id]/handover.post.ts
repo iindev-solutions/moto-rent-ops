@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { getDb, rentalItems, rentalAgreements, motorcycles, handovers, obligations, documentCustodies, auditEvents } from '@book-moto/db'
 import { hasValidHeldDocument } from '../../../../../server/utils/documents'
+import { advanceAgreementVersion } from '../../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   odometer: z.number().int().min(0).optional(),
@@ -50,7 +51,7 @@ export default defineEventHandler(async (event) => {
       if (!handover) throw createError({ statusCode: 500, statusMessage: 'Could not record handover' })
 
       await tx.update(rentalItems).set({ status: 'active', updatedAt: new Date() }).where(eq(rentalItems.id, item.id))
-      await tx.update(rentalAgreements).set({ status: 'active', updatedAt: new Date() }).where(eq(rentalAgreements.id, agreement.id))
+      await advanceAgreementVersion(tx, agreement.id, { status: 'active' }, 'handover', user.id)
       await tx.update(motorcycles).set({
         status: 'rented',
         nextAction: 'Return check',

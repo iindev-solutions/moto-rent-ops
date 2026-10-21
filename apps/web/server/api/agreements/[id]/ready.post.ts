@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { getDb, rentalAgreements, rentalItems, motorcycles, documentCustodies, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../server/utils/agreement-versions'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event) => {
         if (bike.status !== 'available') throw createError({ statusCode: 409, statusMessage: 'Every motorcycle must be available' })
       }
 
-      await tx.update(rentalAgreements).set({ status: 'ready', updatedAt: new Date() }).where(eq(rentalAgreements.id, agreementId))
+      await advanceAgreementVersion(tx, agreementId, { status: 'ready' }, 'ready', user.id)
       for (const item of items) {
         await tx.update(motorcycles).set({ status: 'reserved', nextAction: 'Handover pending', updatedAt: new Date() }).where(eq(motorcycles.id, item.motorcycleId))
       }

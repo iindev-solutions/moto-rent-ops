@@ -92,6 +92,17 @@ export type ClientsResponse = {
   clients: ClientSummary[]
 } & PageMeta
 
+export type AgreementVersion = {
+  id: string
+  version: number
+  status: string
+  changeReason: string
+  startDate: string | null
+  endDate: string | null
+  itemCount: number
+  createdAt: string
+}
+
 export type ClientContact = {
   id: string
   channel: string

@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, rentalAgreements, rentalItems, motorcycles, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   reason: z.string().trim().min(3).max(500),
@@ -33,8 +34,6 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      await tx.update(rentalAgreements).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(rentalAgreements.id, agreementId))
-
       await tx.update(rentalItems)
         .set({ status: 'cancelled', updatedAt: new Date() })
         .where(and(eq(rentalItems.agreementId, agreementId), eq(rentalItems.status, 'planned')))
@@ -46,6 +45,8 @@ export default defineEventHandler(async (event) => {
             .where(and(eq(motorcycles.id, item.motorcycleId), eq(motorcycles.status, 'reserved')))
         }
       }
+
+      await advanceAgreementVersion(tx, agreementId, { status: 'cancelled' }, 'cancelled', user.id)
 
       await tx.insert(auditEvents).values({
         actorUserId: user.id,

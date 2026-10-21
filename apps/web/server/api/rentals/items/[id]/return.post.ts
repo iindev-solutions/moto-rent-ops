@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { and, eq, notInArray } from 'drizzle-orm'
 import { getDb, rentalItems, rentalAgreements, motorcycles, returnInspections, obligations, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   odometer: z.number().int().min(0).optional(),
@@ -54,7 +55,9 @@ export default defineEventHandler(async (event) => {
           notInArray(rentalItems.status, ['returned', 'cancelled']),
         ))
       if (openItems.length === 0) {
-        await tx.update(rentalAgreements).set({ status: 'returned', updatedAt: new Date() }).where(eq(rentalAgreements.id, agreement.id))
+        await advanceAgreementVersion(tx, agreement.id, { status: 'returned' }, 'returned', user.id)
+      } else {
+        await advanceAgreementVersion(tx, agreement.id, {}, 'item_returned', user.id)
       }
 
       await tx.update(motorcycles).set({

@@ -163,6 +163,46 @@ export const rentalItems = pgTable('rental_items', {
   check('rental_items_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
 
+export type AgreementVersionSnapshot = {
+  agreement: {
+    id: string
+    clientId: string
+    status: string
+    startDate: string | null
+    endDate: string | null
+    notes: string | null
+  }
+  items: Array<{
+    id: string
+    motorcycleId: string
+    startDate: string
+    endDate: string
+    dailyRateMinor: number
+    currency: string
+    status: string
+  }>
+}
+
+// Insert-only history: every material change of an agreement appends one immutable row.
+// Rows are never updated or deleted; `version` matches rental_agreements.version at that moment.
+export const rentalAgreementVersions = pgTable('rental_agreement_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  agreementId: uuid('agreement_id').notNull().references(() => rentalAgreements.id),
+  version: integer('version').notNull(),
+  status: varchar('status', { length: 32 }).notNull(),
+  changeReason: varchar('change_reason', { length: 32 }).notNull(),
+  startDate: timestamp('start_date', { withTimezone: true }),
+  endDate: timestamp('end_date', { withTimezone: true }),
+  notes: text('notes'),
+  snapshot: jsonb('snapshot').$type<AgreementVersionSnapshot>().notNull(),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('rental_agreement_versions_agreement_version_uidx').on(table.agreementId, table.version),
+  index('rental_agreement_versions_agreement_idx').on(table.agreementId),
+  check('rental_agreement_versions_version_chk', sql`${table.version} > 0`),
+])
+
 export const handovers = pgTable('handovers', {
   id: uuid('id').defaultRandom().primaryKey(),
   rentalItemId: uuid('rental_item_id').references(() => rentalItems.id),
