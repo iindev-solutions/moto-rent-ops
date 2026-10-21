@@ -135,9 +135,9 @@ async function returnDeposit(depositId: string) {
           <tbody>
             <tr v-for="row in obligations" :key="row.id">
               <td>{{ tObligationType(row.type) }}</td>
-              <td>{{ row.amountMinor }}</td>
-              <td>{{ row.allocatedMinor }}</td>
-              <td>{{ row.balanceMinor }}</td>
+              <td>{{ formatMoney(row.amountMinor) }}</td>
+              <td>{{ formatMoney(row.allocatedMinor) }}</td>
+              <td>{{ formatMoney(row.balanceMinor) }}</td>
               <td><span class="status-pill">{{ tStatus(row.status) }}</span></td>
             </tr>
           </tbody>
@@ -154,7 +154,7 @@ async function returnDeposit(depositId: string) {
           <tbody>
             <tr v-for="row in receipts" :key="row.id">
               <td>{{ row.method }}</td>
-              <td>{{ row.amountMinor }}</td>
+              <td>{{ formatMoney(row.amountMinor) }}</td>
               <td>{{ formatDateTime(row.receivedAt) }}</td>
             </tr>
           </tbody>
@@ -171,8 +171,8 @@ async function returnDeposit(depositId: string) {
           <tbody>
             <tr v-for="row in deposits" :key="row.id">
               <td>{{ tDepositType(row.type) }}</td>
-              <td>{{ row.amountMinor ?? '—' }}</td>
-              <td>{{ row.remainingMinor ?? '—' }}</td>
+              <td>{{ formatMoney(row.amountMinor) }}</td>
+              <td>{{ formatMoney(row.remainingMinor) }}</td>
               <td><span class="status-pill">{{ tStatus(row.status) }}</span></td>
               <td>{{ formatDateTime(row.receivedAt) }}</td>
               <td class="text-right">

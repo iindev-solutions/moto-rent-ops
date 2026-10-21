@@ -158,82 +158,88 @@ async function exportCsv() {
       </div>
     </section>
     <div v-if="dashboardError" class="panel mb-4 border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]"><div class="flex flex-wrap items-center justify-between gap-3"><span>{{ t('common.error') }}</span><UButton class="button-secondary" variant="outline" @click="refreshDashboard()">{{ t('common.retry') }}</UButton></div></div>
-    <section class="content-grid mt-6">
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.activeRentals') }}</p></div>
-        <div v-if="queues.activeRentals.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.activeRentals" :key="item.id" :to="item.href || '/return'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ bikeLabel(item) }}</p>
-            <p class="text-xs text-[var(--muted)]">{{ clientSubtitle(item) }} · {{ dueLabel(item.date) }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
+    <section class="panel mt-6 overflow-hidden">
+      <div class="panel-header">
+        <p class="panel-title">{{ t('today.title') }}</p>
+        <span class="queue-count">{{ queues.activeRentals.length + queues.handovers.length + queues.returns.length + queues.overdueObligations.length + queues.maintenanceDue.length + queues.openIncidents.length + queues.depositsPending.length }}</span>
       </div>
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.handovers') }}</p></div>
-        <div v-if="queues.handovers.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.handovers" :key="item.id" :to="item.href || '/people'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ bikeLabel(item) }}</p>
-            <p v-if="item.date" class="text-xs text-[var(--muted)]">{{ formatDateTime(item.date) }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
-      </div>
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.returns') }}</p></div>
-        <div v-if="queues.returns.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.returns" :key="item.id" :to="item.href || '/return'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ bikeLabel(item) }}</p>
-            <p class="text-xs text-[var(--muted)]">{{ clientSubtitle(item) }} · {{ dueLabel(item.date) }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
-      </div>
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.overdue') }}</p></div>
-        <div v-if="queues.overdueObligations.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.overdueObligations" :key="item.id" :to="item.href || '/finance'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ obligationTitle(item) }}</p>
-            <p class="text-xs text-[var(--muted)]">{{ clientSubtitle(item) }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
-      </div>
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.maintenance') }}</p></div>
-        <div v-if="queues.maintenanceDue.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.maintenanceDue" :key="item.id" :to="item.href || '/maintenance'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ maintenanceTitle(item) }}</p>
-            <p v-if="item.date" class="text-xs text-[var(--muted)]">{{ formatDateTime(item.date) }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
-      </div>
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.incidents') }}</p></div>
-        <div v-if="queues.openIncidents.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.openIncidents" :key="item.id" :to="item.href || '/incidents'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ item.title }}</p>
-            <p v-if="incidentSubtitle(item)" class="text-xs text-[var(--muted)]">{{ incidentSubtitle(item) }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
-      </div>
-      <div class="panel overflow-hidden">
-        <div class="panel-header"><p class="panel-title">{{ t('today.deposits') }}</p></div>
-        <div v-if="queues.depositsPending.length" class="panel-body space-y-2">
-          <NuxtLink v-for="item in queues.depositsPending" :key="item.id" :to="item.href || '/finance'" class="block border-b border-[var(--line)] py-2 last:border-b-0">
-            <p class="font-semibold">{{ depositTitle(item) }}</p>
-            <p v-if="item.clientName" class="text-xs text-[var(--muted)]">{{ item.clientName }}</p>
-          </NuxtLink>
-        </div>
-        <p v-else class="panel-body text-sm text-[var(--muted)]">{{ t('today.empty') }}</p>
+      <div class="today-grid">
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.activeRentals') }}</h2>
+          <div v-if="queues.activeRentals.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.activeRentals" :key="item.id" :to="item.href || '/return'" class="queue-item">
+              <p class="font-semibold">{{ bikeLabel(item) }}</p>
+              <p class="text-xs text-[var(--muted)]">{{ clientSubtitle(item) }} · {{ dueLabel(item.date) }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.handovers') }}</h2>
+          <div v-if="queues.handovers.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.handovers" :key="item.id" :to="item.href || '/people'" class="queue-item">
+              <p class="font-semibold">{{ bikeLabel(item) }}</p>
+              <p v-if="item.date" class="text-xs text-[var(--muted)]">{{ formatDateTime(item.date) }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.returns') }}</h2>
+          <div v-if="queues.returns.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.returns" :key="item.id" :to="item.href || '/return'" class="queue-item">
+              <p class="font-semibold">{{ bikeLabel(item) }}</p>
+              <p class="text-xs text-[var(--muted)]">{{ clientSubtitle(item) }} · {{ dueLabel(item.date) }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.overdue') }}</h2>
+          <div v-if="queues.overdueObligations.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.overdueObligations" :key="item.id" :to="item.href || '/finance'" class="queue-item">
+              <p class="font-semibold">{{ obligationTitle(item) }}</p>
+              <p class="text-xs text-[var(--muted)]">{{ clientSubtitle(item) }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.maintenance') }}</h2>
+          <div v-if="queues.maintenanceDue.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.maintenanceDue" :key="item.id" :to="item.href || '/maintenance'" class="queue-item">
+              <p class="font-semibold">{{ maintenanceTitle(item) }}</p>
+              <p v-if="item.date" class="text-xs text-[var(--muted)]">{{ formatDateTime(item.date) }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.incidents') }}</h2>
+          <div v-if="queues.openIncidents.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.openIncidents" :key="item.id" :to="item.href || '/incidents'" class="queue-item">
+              <p class="font-semibold">{{ item.title }}</p>
+              <p v-if="incidentSubtitle(item)" class="text-xs text-[var(--muted)]">{{ incidentSubtitle(item) }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
+        <section class="today-group">
+          <h2 class="today-group-title">{{ t('today.deposits') }}</h2>
+          <div v-if="queues.depositsPending.length" class="space-y-1">
+            <NuxtLink v-for="item in queues.depositsPending" :key="item.id" :to="item.href || '/finance'" class="queue-item">
+              <p class="font-semibold">{{ depositTitle(item) }}</p>
+              <p v-if="item.clientName" class="text-xs text-[var(--muted)]">{{ item.clientName }}</p>
+            </NuxtLink>
+          </div>
+          <p v-else class="today-empty">{{ t('today.empty') }}</p>
+        </section>
       </div>
     </section>
     <section class="content-grid">
       <div class="panel overflow-hidden">
         <div class="panel-header">
-          <div><p class="panel-title">{{ t('dashboard.recent') }}</p><p class="mt-1 text-xs text-[var(--text-muted)]">{{ t('dashboard.subtitle') }}</p></div>
+          <p class="panel-title">{{ t('dashboard.recent') }}</p>
           <UInput v-model="search" class="w-full max-w-56" :placeholder="t('dashboard.search')" :aria-label="t('dashboard.search')" />
         </div>
         <div v-if="visibleBikes.length" class="overflow-x-auto">
@@ -241,7 +247,7 @@ async function exportCsv() {
             <thead><tr><th>{{ t('home.fleet') }}</th><th>{{ t('bike.status') }}</th><th>{{ t('bike.location') }}</th><th>{{ t('bike.nextAction') }}</th></tr></thead>
             <tbody>
               <tr v-for="bike in visibleBikes" :key="bike.id">
-                <td><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="font-semibold hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else class="font-semibold">{{ bike.assetCode }} · {{ bike.model }}</span><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
+                <td><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="font-semibold hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else class="font-semibold">{{ bike.assetCode }} · {{ bike.model }}</span><div class="mt-1 font-mono text-[11px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
                 <td><span class="status-pill">{{ statusLabel(bike.status) }}</span></td>
                 <td>{{ bike.location || '—' }}</td>
                 <td>{{ bike.nextAction || '—' }}</td>
