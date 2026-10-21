@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { BikeSummary, BikesResponse } from '@book-moto/contracts'
+import { formatManualCode } from '@book-moto/domain/qr'
 
 definePageMeta({ middleware: 'auth', layout: false })
 
-type PrintableBike = BikeSummary & { qrToken: string }
+type PrintableBike = BikeSummary & { qrToken: string, manualCode: string }
 
 const route = useRoute()
 const { t } = useLocale()
@@ -16,7 +17,7 @@ const { data, error, status, refresh } = await useFetch<BikesResponse>(() => {
   return `/api/bikes?${params.toString()}`
 })
 
-const bikes = computed<PrintableBike[]>(() => (data.value?.bikes || []).filter((bike): bike is PrintableBike => Boolean(bike.qrToken)))
+const bikes = computed<PrintableBike[]>(() => (data.value?.bikes || []).filter((bike): bike is PrintableBike => Boolean(bike.qrToken && bike.manualCode)))
 const total = computed(() => data.value?.total ?? bikes.value.length)
 const skipped = computed(() => (data.value?.bikes || []).length - bikes.value.length)
 
@@ -72,7 +73,7 @@ function printLabels() {
               <p class="label-line">{{ bike.plate || t('bike.noPlate') }} · {{ bike.location || '—' }}</p>
             </div>
             <div class="label-foot">
-              <p class="label-code">{{ t('bike.manualCode') }}: {{ bike.qrToken }}</p>
+              <p class="label-code">{{ t('bike.manualCode') }}: {{ formatManualCode(bike.manualCode) }}</p>
               <p class="label-instruction">{{ t('bike.printInstruction') }}</p>
               <p class="label-date">{{ t('bike.printedAt') }}: {{ formatDateTime(printedAt) }}</p>
             </div>

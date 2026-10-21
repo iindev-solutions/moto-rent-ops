@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
     location: motorcycles.location,
     nextAction: motorcycles.nextAction,
     tokenCiphertext: qrPayloads.tokenCiphertext,
+    manualCode: qrPayloads.manualCode,
   }).from(motorcycles)
     .leftJoin(qrIdentities, eq(qrIdentities.motorcycleId, motorcycles.id))
     .leftJoin(qrPayloads, and(eq(qrPayloads.identityId, qrIdentities.id), eq(qrPayloads.status, 'active')))

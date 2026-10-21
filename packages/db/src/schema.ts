@@ -45,12 +45,14 @@ export const qrPayloads = pgTable('qr_payloads', {
   identityId: uuid('identity_id').notNull().references(() => qrIdentities.id),
   tokenHash: varchar('token_hash', { length: 128 }).notNull(),
   tokenCiphertext: text('token_ciphertext').notNull(),
+  manualCode: varchar('manual_code', { length: 16 }).notNull(),
   status: varchar('status', { length: 16 }).notNull().default('active'),
   version: integer('version').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   retiredAt: timestamp('retired_at', { withTimezone: true }),
 }, (table) => [
   uniqueIndex('qr_payloads_token_hash_uidx').on(table.tokenHash),
+  uniqueIndex('qr_payloads_manual_code_uidx').on(table.manualCode),
   uniqueIndex('qr_payloads_active_identity_uidx').on(table.identityId).where(sql`status = 'active'`),
   index('qr_payloads_identity_status_idx').on(table.identityId, table.status),
 ])

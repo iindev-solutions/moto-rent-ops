@@ -678,3 +678,54 @@ describe('document PII access auditing', () => {
     expect((await api('/api/audit?entityId=not-a-uuid')).status).toBe(400)
   })
 })
+
+describe('manual locator codes', () => {
+  it('resolves a bike by its short printed code, including formatted input', async () => {
+    const list = await api('/api/bikes?limit=200')
+    const bike = (list.data.bikes as Json[]).find(row => row.assetCode === 'BM-010')
+    expect(bike, 'seed must contain BM-010').toBeTruthy()
+    expect(typeof bike!.manualCode).toBe('string')
+    expect(bike!.manualCode).toMatch(/^[0-9A-HJKMNP-TV-Z]{10}$/)
+
+    const detail = await api(`/api/bikes/${encodeURIComponent(bike!.manualCode)}`)
+    expect(detail.status).toBe(200)
+    expect(detail.data.id).toBe(bike!.id)
+    expect(detail.data.manualCode).toBe(bike!.manualCode)
+
+    const code = bike!.manualCode as string
+    const typed = `${code.slice(0, 5)} ${code.slice(5)}`.toLowerCase()
+    expect((await api(`/api/bikes/${encodeURIComponent(typed)}/context`)).status).toBe(200)
+    expect((await api(`/api/bikes/${encodeURIComponent(typed)}/locations`)).status).toBe(200)
+
+    const svg = await fetch(url(`/api/bikes/${encodeURIComponent(code)}/qr.svg`), { headers: { cookie } })
+    expect(svg.status).toBe(200)
+    expect(svg.headers.get('content-type')).toContain('image/svg+xml')
+  })
+
+  it('rotates the payload, retires the old code and issues a fresh one', async () => {
+    const list = await api('/api/bikes?limit=200')
+    const bike = (list.data.bikes as Json[]).find(row => row.assetCode === 'BM-010')
+    const oldCode = bike!.manualCode as string
+    const oldToken = bike!.qrToken as string
+
+    const rotated = await api(`/api/bikes/${encodeURIComponent(oldCode)}/rotate`, {
+      json: { reason: 'e2e manual code rotation' },
+    })
+    expect(rotated.status).toBe(200)
+    expect(rotated.data.manualCode).toMatch(/^[0-9A-HJKMNP-TV-Z]{10}$/)
+    expect(rotated.data.manualCode).not.toBe(oldCode)
+    expect(rotated.data.qrToken).not.toBe(oldToken)
+
+    expect((await api(`/api/bikes/${encodeURIComponent(oldCode)}`)).status).toBe(404)
+    expect((await api(`/api/bikes/${encodeURIComponent(oldToken)}`)).status).toBe(404)
+
+    const fresh = await api(`/api/bikes/${encodeURIComponent(rotated.data.manualCode)}`)
+    expect(fresh.status).toBe(200)
+    expect(fresh.data.assetCode).toBe('BM-010')
+
+    const after = await api('/api/bikes?limit=200')
+    const updated = (after.data.bikes as Json[]).find(row => row.assetCode === 'BM-010')
+    expect(updated!.manualCode).toBe(rotated.data.manualCode)
+    expect(updated!.qrToken).toBe(rotated.data.qrToken)
+  })
+})

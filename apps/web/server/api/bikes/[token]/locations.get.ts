@@ -1,26 +1,16 @@
-import { and, desc, eq } from 'drizzle-orm'
-import { getDb, motorcycles, locationAssignments, qrIdentities, qrPayloads, users } from '@book-moto/db'
-import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
-import { hashLocatorToken } from '@book-moto/db/crypto'
-import { canAccessLocation, requireAppUser } from '../../../../server/utils/auth'
+import { desc, eq } from 'drizzle-orm'
+import { getDb, locationAssignments, users } from '@book-moto/db'
+import { resolveBikeLocator } from '../../../utils/bike-locator'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   const user = await requireAppUser(event)
   const rawToken = getRouterParam(event, 'token')
-  const token = rawToken ? canonicalizeLocatorToken(rawToken) : null
-  if (!token) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
+  if (!rawToken) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
 
   const db = await getDb()
-  const tokenHash = hashLocatorToken(token)
   try {
-    const [bike] = await db
-      .select({ id: motorcycles.id, location: motorcycles.location })
-      .from(qrPayloads)
-      .innerJoin(qrIdentities, eq(qrPayloads.identityId, qrIdentities.id))
-      .innerJoin(motorcycles, eq(qrIdentities.motorcycleId, motorcycles.id))
-      .where(and(eq(qrPayloads.tokenHash, tokenHash), eq(qrPayloads.status, 'active')))
-      .limit(1)
+    const bike = await resolveBikeLocator(rawToken)
     if (!bike || !canAccessLocation(user, bike.location)) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
 
     const rows = await db
@@ -34,7 +24,7 @@ export default defineEventHandler(async (event) => {
       })
       .from(locationAssignments)
       .leftJoin(users, eq(locationAssignments.assignedByUserId, users.id))
-      .where(eq(locationAssignments.motorcycleId, bike.id))
+      .where(eq(locationAssignments.motorcycleId, bike.motorcycleId))
       .orderBy(desc(locationAssignments.startedAt))
       .limit(50)
 

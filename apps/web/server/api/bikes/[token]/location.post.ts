@@ -1,9 +1,7 @@
 import { z } from 'zod'
 import { and, eq, isNull } from 'drizzle-orm'
-import { getDb, motorcycles, locationAssignments, qrIdentities, qrPayloads, auditEvents } from '@book-moto/db'
-import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
-import { hashLocatorToken } from '@book-moto/db/crypto'
-import { canAccessLocation, requireAppUser } from '../../../../server/utils/auth'
+import { getDb, motorcycles, locationAssignments, auditEvents } from '@book-moto/db'
+import { resolveBikeLocator } from '../../../utils/bike-locator'
 
 const bodySchema = z.object({
   location: z.string().trim().min(2).max(120),
@@ -14,8 +12,7 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   const user = await requireAppUser(event)
   const rawToken = getRouterParam(event, 'token')
-  const token = rawToken ? canonicalizeLocatorToken(rawToken) : null
-  if (!token) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
+  if (!rawToken) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
   const parsed = bodySchema.safeParse(await readBody(event).catch(() => null))
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'Invalid location payload' })
 
@@ -25,19 +22,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = await getDb()
-  const tokenHash = hashLocatorToken(token)
   try {
-    const assignment = await db.transaction(async (tx) => {
-      const [resolved] = await tx
-        .select({ id: motorcycles.id })
-        .from(qrPayloads)
-        .innerJoin(qrIdentities, eq(qrPayloads.identityId, qrIdentities.id))
-        .innerJoin(motorcycles, eq(qrIdentities.motorcycleId, motorcycles.id))
-        .where(and(eq(qrPayloads.tokenHash, tokenHash), eq(qrPayloads.status, 'active')))
-        .limit(1)
-      if (!resolved) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
+    const locator = await resolveBikeLocator(rawToken)
+    if (!locator || !canAccessLocation(user, locator.location)) {
+      throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
+    }
 
-      const [bike] = await tx.select().from(motorcycles).where(eq(motorcycles.id, resolved.id)).limit(1).for('update')
+    const assignment = await db.transaction(async (tx) => {
+      const [bike] = await tx.select().from(motorcycles).where(eq(motorcycles.id, locator.motorcycleId)).limit(1).for('update')
       if (!bike || !canAccessLocation(user, bike.location)) throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
       if (bike.location === targetLocation) throw createError({ statusCode: 409, statusMessage: 'Motorcycle is already at this location' })
 

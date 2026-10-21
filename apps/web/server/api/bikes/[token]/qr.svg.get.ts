@@ -1,33 +1,24 @@
-import { and, eq } from 'drizzle-orm'
 import QRCode from 'qrcode'
-import { getDb, motorcycles, qrIdentities, qrPayloads } from '@book-moto/db'
-import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
 import { buildBikeDeepLink } from '@book-moto/domain/qr'
-import { hashLocatorToken } from '@book-moto/db/crypto'
+import { resolveBikeLocator } from '../../../utils/bike-locator'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   const user = await requireAppUser(event)
   const rawToken = getRouterParam(event, 'token')
-  const token = rawToken ? canonicalizeLocatorToken(rawToken) : null
-  if (!token) {
+  if (!rawToken) {
     throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
   }
 
-  const db = await getDb()
-  const tokenHash = hashLocatorToken(token)
-
   try {
-    const [row] = await db
-      .select({ location: motorcycles.location })
-      .from(qrPayloads)
-      .innerJoin(qrIdentities, eq(qrPayloads.identityId, qrIdentities.id))
-      .innerJoin(motorcycles, eq(qrIdentities.motorcycleId, motorcycles.id))
-      .where(and(eq(qrPayloads.tokenHash, tokenHash), eq(qrPayloads.status, 'active')))
-      .limit(1)
-
-    if (!row || !canAccessLocation(user, row.location)) {
+    const locator = await resolveBikeLocator(rawToken)
+    if (!locator || !canAccessLocation(user, locator.location)) {
       throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
+    }
+
+    const token = safeDecryptLocatorToken(locator.tokenCiphertext)
+    if (!token) {
+      throw createError({ statusCode: 500, statusMessage: 'Stored locator token is unreadable' })
     }
 
     const origin = getRequestURL(event).origin

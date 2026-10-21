@@ -84,7 +84,7 @@ function pickBike(bike: BikeSummary) {
 function onScan(value: string) {
   scannerOpen.value = false
   const token = normalizeLocatorToken(value)
-  const found = token ? availableBikes.value.find(bike => bike.qrToken === token) : undefined
+  const found = token ? availableBikes.value.find(bike => bike.qrToken === token || bike.manualCode === token) : undefined
   if (found) {
     pickBike(found)
   } else {

@@ -7,6 +7,7 @@ export type BikeSummary = {
   location: string | null
   nextAction: string | null
   qrToken?: string | null
+  manualCode?: string | null
 }
 
 export type DepositType = 'document_custody' | 'cash'

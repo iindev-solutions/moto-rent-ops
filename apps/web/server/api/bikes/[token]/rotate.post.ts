@@ -1,9 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, motorcycles, qrIdentities, qrPayloads, auditEvents } from '@book-moto/db'
-import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
-import { encryptLocatorToken, hashLocatorToken } from '@book-moto/db/crypto'
-import { randomUUID } from 'node:crypto'
+import { getDb, qrPayloads, auditEvents } from '@book-moto/db'
+import { resolveBikeLocator } from '../../../utils/bike-locator'
+import { createQrCredentials } from '../../../utils/qr-issue'
 
 const bodySchema = z.object({
   reason: z.string().trim().min(3).max(500).optional(),
@@ -13,8 +12,7 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   const user = await requireAppUser(event)
   const rawToken = getRouterParam(event, 'token')
-  const token = rawToken ? canonicalizeLocatorToken(rawToken) : null
-  if (!token) {
+  if (!rawToken) {
     throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
   }
 
@@ -24,46 +22,41 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = await getDb()
-  const tokenHash = hashLocatorToken(token)
-
-  const newToken = canonicalizeLocatorToken(randomUUID())
-  if (!newToken) {
-    throw createError({ statusCode: 500, statusMessage: 'Could not generate locator token' })
-  }
 
   try {
-    const result = await db.transaction(async (tx) => {
-      const [row] = await tx
-        .select({
-          identityId: qrIdentities.id,
-          motorcycleId: motorcycles.id,
-          location: motorcycles.location,
-          payloadId: qrPayloads.id,
-          version: qrPayloads.version,
-        })
-        .from(qrPayloads)
-        .innerJoin(qrIdentities, eq(qrPayloads.identityId, qrIdentities.id))
-        .innerJoin(motorcycles, eq(qrIdentities.motorcycleId, motorcycles.id))
-        .where(and(eq(qrPayloads.tokenHash, tokenHash), eq(qrPayloads.status, 'active')))
-        .limit(1)
+    const locator = await resolveBikeLocator(rawToken)
+    if (!locator || !canAccessLocation(user, locator.location)) {
+      throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
+    }
 
-      if (!row || !canAccessLocation(user, row.location)) {
+    const credentials = createQrCredentials()
+
+    await db.transaction(async (tx) => {
+      const [active] = await tx
+        .select({ id: qrPayloads.id, version: qrPayloads.version })
+        .from(qrPayloads)
+        .where(and(eq(qrPayloads.id, locator.payloadId), eq(qrPayloads.status, 'active')))
+        .limit(1)
+        .for('update')
+
+      if (!active) {
         throw createError({ statusCode: 404, statusMessage: 'Bike not found' })
       }
 
       await tx
         .update(qrPayloads)
         .set({ status: 'retired', retiredAt: new Date() })
-        .where(eq(qrPayloads.id, row.payloadId))
+        .where(eq(qrPayloads.id, active.id))
 
       const [created] = await tx
         .insert(qrPayloads)
         .values({
-          identityId: row.identityId,
-          tokenHash: hashLocatorToken(newToken),
-          tokenCiphertext: encryptLocatorToken(newToken),
+          identityId: locator.identityId,
+          tokenHash: credentials.tokenHash,
+          tokenCiphertext: credentials.tokenCiphertext,
+          manualCode: credentials.manualCode,
           status: 'active',
-          version: row.version + 1,
+          version: active.version + 1,
         })
         .returning()
 
@@ -75,21 +68,19 @@ export default defineEventHandler(async (event) => {
         actorUserId: user.id,
         action: 'qr.payload_rotated',
         entityType: 'motorcycle',
-        entityId: row.motorcycleId,
-        location: row.location,
+        entityId: locator.motorcycleId,
+        location: locator.location,
         reason: parsed.data.reason || 'QR label rotated',
         metadata: {
-          oldPayloadId: row.payloadId,
+          oldPayloadId: active.id,
           newPayloadId: created.id,
-          oldVersion: row.version,
-          newVersion: row.version + 1,
+          oldVersion: active.version,
+          newVersion: active.version + 1,
         },
       })
-
-      return { motorcycleId: row.motorcycleId, newToken }
     })
 
-    return { qrToken: result.newToken }
+    return { qrToken: credentials.token, manualCode: credentials.manualCode }
   } catch (error) {
     throwApiError(error)
   }

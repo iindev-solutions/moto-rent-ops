@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BikeSummary, LocationAssignment } from '@book-moto/contracts'
-import { normalizeLocatorToken } from '@book-moto/domain/qr'
+import { formatManualCode, normalizeLocatorToken } from '@book-moto/domain/qr'
 
 definePageMeta({ middleware: 'auth', layout: false })
 
@@ -164,6 +164,7 @@ function printLabel() {
               <p class="eyebrow text-white/50">{{ t('bike.motorcycle') }} / {{ bike.assetCode }}</p>
               <h1 class="mt-4 text-4xl font-extrabold tracking-[-0.065em] sm:text-6xl">{{ bike.model }}</h1>
               <p class="mt-3 font-mono text-sm text-white/60">{{ bike.plate || t('bike.noPlate') }}</p>
+              <p class="mt-2 font-mono text-xs uppercase tracking-[0.12em] text-white/50">{{ t('bike.manualCode') }}: {{ bike.manualCode ? formatManualCode(bike.manualCode) : '—' }}</p>
             </div>
             <span class="status-pill text-[var(--acid)]">{{ statusLabel }}</span>
           </div>
@@ -285,7 +286,7 @@ function printLabel() {
           </div>
           <img class="print-qr" :src="`/api/bikes/${encodeURIComponent(token)}/qr.svg`" :alt="t('bike.qrAlt')" />
           <div class="print-meta">
-            <p><strong>{{ t('bike.manualCode') }}:</strong> {{ token }}</p>
+            <p><strong>{{ t('bike.manualCode') }}:</strong> {{ bike.manualCode ? formatManualCode(bike.manualCode) : token }}</p>
             <p>{{ t('bike.printInstruction') }}</p>
             <p class="print-version">{{ t('bike.printedAt') }}: {{ formatDateTime(new Date()) }}</p>
           </div>

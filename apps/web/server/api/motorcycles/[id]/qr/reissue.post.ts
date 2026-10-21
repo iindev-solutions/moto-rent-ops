@@ -1,9 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, motorcycles, qrIdentities, qrPayloads, auditEvents } from '@book-moto/db'
-import { canonicalizeLocatorToken } from '@book-moto/domain/qr'
-import { encryptLocatorToken, hashLocatorToken } from '@book-moto/db/crypto'
-import { randomUUID } from 'node:crypto'
+import { createQrCredentials } from '../../../../utils/qr-issue'
 
 const bodySchema = z.object({
   reason: z.string().trim().min(3).max(500).default('QR label reissued'),
@@ -20,8 +18,7 @@ export default defineEventHandler(async (event) => {
 
   const db = await getDb()
   try {
-    const newToken = canonicalizeLocatorToken(randomUUID())
-    if (!newToken) throw createError({ statusCode: 500, statusMessage: 'Could not generate locator token' })
+    const credentials = createQrCredentials()
 
     const result = await db.transaction(async (tx) => {
       const [bike] = await tx.select().from(motorcycles).where(eq(motorcycles.id, motorcycleId)).limit(1)
@@ -40,8 +37,9 @@ export default defineEventHandler(async (event) => {
 
       const [created] = await tx.insert(qrPayloads).values({
         identityId: identity.id,
-        tokenHash: hashLocatorToken(newToken),
-        tokenCiphertext: encryptLocatorToken(newToken),
+        tokenHash: credentials.tokenHash,
+        tokenCiphertext: credentials.tokenCiphertext,
+        manualCode: credentials.manualCode,
         status: 'active',
         version: (activePayloads[0]?.version ?? 0) + 1,
       }).returning()
@@ -57,11 +55,9 @@ export default defineEventHandler(async (event) => {
         reason: parsed.data.reason,
         metadata: { newPayloadId: created.id, retiredCount: activePayloads.length },
       })
-
-      return newToken
     })
 
-    return { qrToken: result }
+    return { qrToken: credentials.token, manualCode: credentials.manualCode }
   } catch (error) {
     throwApiError(error)
   }

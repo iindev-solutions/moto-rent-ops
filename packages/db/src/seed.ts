@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { and, eq, isNull } from 'drizzle-orm'
 import { hash } from 'argon2'
 import { randomUUID } from 'node:crypto'
-import { buildBikeDeepLink, canonicalizeLocatorToken } from '@book-moto/domain/qr'
+import { buildBikeDeepLink, canonicalizeLocatorToken, formatManualCode, generateManualCode } from '@book-moto/domain/qr'
 import { closeDb, getDb } from './client'
 import { decryptLocatorToken, encryptLocatorToken, hashLocatorToken } from './crypto'
 import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, locationAssignments, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreementVersions, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
@@ -96,14 +96,14 @@ for (const fixture of fixtures) {
     throw new Error(`Could not create QR identity for ${fixture.assetCode}`)
   }
 
-  const [activePayload] = await db.select({ id: qrPayloads.id, tokenCiphertext: qrPayloads.tokenCiphertext }).from(qrPayloads).where(and(
+  const [activePayload] = await db.select({ id: qrPayloads.id, tokenCiphertext: qrPayloads.tokenCiphertext, manualCode: qrPayloads.manualCode }).from(qrPayloads).where(and(
     eq(qrPayloads.identityId, identity.id),
     eq(qrPayloads.status, 'active'),
   )).limit(1)
   if (activePayload) {
     const existingToken = decryptLocatorToken(activePayload.tokenCiphertext)
     if (existingToken) {
-      qrDeepLinks.push(buildBikeDeepLink(appUrl, existingToken))
+      qrDeepLinks.push(`${buildBikeDeepLink(appUrl, existingToken)} (manual code: ${formatManualCode(activePayload.manualCode)})`)
     }
     continue
   }
@@ -112,13 +112,15 @@ for (const fixture of fixtures) {
   if (!token) {
     throw new Error('Generated bike token is invalid')
   }
+  const manualCode = generateManualCode()
 
   await db.insert(qrPayloads).values({
     identityId: identity.id,
     tokenHash: hashLocatorToken(token),
     tokenCiphertext: encryptLocatorToken(token),
+    manualCode,
   })
-  qrDeepLinks.push(buildBikeDeepLink(appUrl, token))
+  qrDeepLinks.push(`${buildBikeDeepLink(appUrl, token)} (manual code: ${formatManualCode(manualCode)})`)
 }
 
 function expectRow<T>(row: T | undefined, message: string): T {
