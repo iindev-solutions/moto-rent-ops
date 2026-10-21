@@ -11,6 +11,7 @@
     "dev": "npm --workspace @book-moto/web run dev",
     "build": "npm --workspace @book-moto/web run build",
     "typecheck": "npm --workspace @book-moto/web run typecheck",
+    "test": "npm --workspace @book-moto/web run test",
     "db:generate": "npm --workspace @book-moto/db run generate",
     "db:migrate": "npm --workspace @book-moto/db run migrate",
     "db:seed": "npm --workspace @book-moto/db run seed"

@@ -6,7 +6,8 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run"
   },
   "dependencies": {
     "@book-moto/contracts": "*",
@@ -20,15 +21,17 @@
     "dotenv": "^16.6.1",
     "nuxt": "4.5.2",
     "nuxt-auth-utils": "^0.5.30",
+    "qrcode": "^1.5.4",
     "tailwindcss": "4.3.3",
     "zod": "4.6.5",
-    "zxing-wasm": "3.1.4",
-    "qrcode": "^1.5.4"
+    "zxing-wasm": "3.1.4"
   },
   "devDependencies": {
+    "@nuxt/test-utils": "^4.3.4",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^26.6.2",
     "typescript": "^5.9.3",
+    "vitest": "^5.0.5",
     "vue-tsc": "^3.3.11"
   }
 }
