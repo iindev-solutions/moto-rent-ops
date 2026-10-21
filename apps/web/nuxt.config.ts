@@ -65,6 +65,7 @@ export default defineNuxtConfig({
     '/people': { ssr: false },
     '/people/**': { ssr: false },
     '/agreements/**': { ssr: false },
+    '/print/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
     '/b/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
     '/api/**': { headers: { 'cache-control': 'no-store' } },
     '/**': {

@@ -131,6 +131,7 @@
   "fleet.empty": "No motorcycles are visible in this workspace yet.",
   "fleet.scan": "Scan a QR label to open an asset",
   "fleet.reissue": "Reissue QR",
+  "fleet.printLabels": "Print labels",
   "login.eyebrow": "SECURE OPERATIONS ACCESS",
   "login.title": "Sign in to MOTO//OPS",
   "login.subtitle": "Access to bike cards, rentals and finance is protected by a session and permission checks.",
@@ -457,5 +458,12 @@
   "bike.qrAlt": "Printable QR code for this motorcycle",
   "bike.manualCode": "Manual code",
   "bike.printInstruction": "If the code does not scan, enter the manual code above in the app.",
-  "bike.printedAt": "Printed at"
+  "bike.printedAt": "Printed at",
+  "print.title": "QR label sheet",
+  "print.subtitle": "Batch print labels for the filtered fleet on A4 paper or sticker sheets.",
+  "print.back": "Back to fleet",
+  "print.action": "Print",
+  "print.all": "All motorcycles",
+  "print.skipped": "Motorcycles without an active QR label are skipped.",
+  "print.empty": "No motorcycles with a QR label match this filter."
 }

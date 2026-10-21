@@ -131,6 +131,7 @@
   "fleet.empty": "Chưa có xe nào trong workspace này.",
   "fleet.scan": "Quét nhãn QR để mở tài sản",
   "fleet.reissue": "Cấp lại QR",
+  "fleet.printLabels": "In nhãn",
   "login.eyebrow": "TRUY CẬP VẬN HÀNH AN TOÀN",
   "login.title": "Đăng nhập MOTO//OPS",
   "login.subtitle": "Quyền truy cập thẻ xe, hợp đồng và tài chính được bảo vệ bằng phiên và kiểm tra quyền.",
@@ -457,5 +458,12 @@
   "bike.qrAlt": "Mã QR in được cho xe này",
   "bike.manualCode": "Mã thủ công",
   "bike.printInstruction": "Nếu không quét được, nhập mã thủ công ở trên vào ứng dụng.",
-  "bike.printedAt": "In lúc"
+  "bike.printedAt": "In lúc",
+  "print.title": "Trang nhãn QR",
+  "print.subtitle": "In hàng loạt nhãn cho đội xe đã lọc trên giấy A4 hoặc giấy decal.",
+  "print.back": "Quay lại đội xe",
+  "print.action": "In",
+  "print.all": "Tất cả xe",
+  "print.skipped": "Bỏ qua các xe chưa có nhãn QR đang hoạt động.",
+  "print.empty": "Không có xe nào có nhãn QR khớp bộ lọc."
 }

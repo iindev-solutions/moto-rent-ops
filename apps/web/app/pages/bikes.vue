@@ -40,6 +40,12 @@ const { data, error, status, refresh } = await useFetch<BikesResponse>(() => {
 const bikes = computed(() => data.value?.bikes || [])
 const total = computed(() => data.value?.total ?? bikes.value.length)
 const hasMore = computed(() => data.value?.hasMore ?? false)
+const printHref = computed(() => {
+  const params = new URLSearchParams()
+  if (search.value) params.set('search', search.value)
+  const query = params.toString()
+  return query ? `/print/labels?${query}` : '/print/labels'
+})
 
 function loadMore() {
   limit.value += pageSize
@@ -113,7 +119,10 @@ function onScan(value: string) {
     <section class="panel overflow-hidden">
       <div class="panel-header">
         <div><p class="panel-title">{{ t('fleet.title') }}</p><p class="mt-1 text-xs text-[var(--text-muted)]">{{ bikes.length }} / {{ total }} {{ t('home.fleet').toLowerCase() }}</p></div>
-        <UInput v-model="searchInput" class="w-full max-w-64" :placeholder="t('fleet.search')" :aria-label="t('fleet.search')" />
+        <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <UInput v-model="searchInput" class="w-full sm:max-w-64" :placeholder="t('fleet.search')" :aria-label="t('fleet.search')" />
+          <UButton class="button-secondary" variant="outline" icon="i-lucide-printer" :to="printHref">{{ t('fleet.printLabels') }}</UButton>
+        </div>
       </div>
       <div v-if="status === 'pending'" class="space-y-3 p-6"><USkeleton class="h-10 w-full" /><USkeleton class="h-10 w-full" /><USkeleton class="h-10 w-full" /></div>
       <div v-else-if="error" class="p-6">
