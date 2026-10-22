@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
       location: locator.location,
       nextAction: locator.nextAction,
       manualCode: locator.manualCode,
+      qrToken: safeDecryptLocatorToken(locator.tokenCiphertext),
     }
   } catch (error) {
     throwApiError(error)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BikeSummary, LocationAssignment } from '@book-moto/contracts'
 import { formatManualCode, normalizeLocatorToken } from '@book-moto/domain/qr'
+import { cacheBikeCards, readCachedBike, type CachedBikeCard } from '~/composables/useBikeCache'
 
 definePageMeta({ middleware: 'auth', layout: false })
 
@@ -9,10 +10,32 @@ const router = useRouter()
 const { t, tStatus, tDepositType, tObligationType } = useLocale()
 const token = computed(() => normalizeLocatorToken(String(route.params.token || '')) || '')
 const tokenReady = Boolean(token.value)
-const { data: bike, error, status, refresh: refreshBike } = await useFetch<BikeSummary>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
+const { data: fetchedBike, error, status, refresh: refreshBike } = await useFetch<BikeSummary>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
   retry: 0,
   immediate: tokenReady,
 })
+
+const cachedBike = ref<CachedBikeCard | null>(null)
+const bike = computed(() => fetchedBike.value ?? cachedBike.value)
+const offline = computed(() => !fetchedBike.value && Boolean(cachedBike.value))
+const cachedAt = computed(() => cachedBike.value?.cachedAt ?? null)
+
+async function loadCachedBike() {
+  if (!import.meta.client || !tokenReady || fetchedBike.value || cachedBike.value || !token.value) {
+    return
+  }
+  cachedBike.value = await readCachedBike(token.value)
+}
+
+onMounted(() => {
+  void loadCachedBike()
+})
+
+watch(fetchedBike, (value) => {
+  if (value) {
+    void cacheBikeCards([value])
+  }
+}, { immediate: true })
 
 const { data: context, error: contextError } = await useFetch<any>(() => `/api/bikes/${encodeURIComponent(token.value)}/context`, {
   retry: 0,
@@ -65,6 +88,10 @@ function resetActionState() {
 
 async function rotateQr() {
   if (!token.value) return
+  if (offline.value) {
+    actionError.value = t('bike.offlineReadOnly')
+    return
+  }
   pending.value = true
   actionError.value = ''
   try {
@@ -84,6 +111,10 @@ async function rotateQr() {
 async function revokeQr() {
   if (!token.value || reason.value.trim().length < 3) {
     actionError.value = t('common.error')
+    return
+  }
+  if (offline.value) {
+    actionError.value = t('bike.offlineReadOnly')
     return
   }
   pending.value = true
@@ -114,6 +145,10 @@ function resetMoveState() {
 
 async function moveBike() {
   if (!token.value) return
+  if (offline.value) {
+    actionError.value = t('bike.offlineReadOnly')
+    return
+  }
   pending.value = true
   actionError.value = ''
   try {
@@ -158,6 +193,11 @@ function printLabel() {
       </div>
 
       <section v-else-if="bike" class="mt-8">
+        <div v-if="offline" class="no-print mb-6 border-l-4 border-[var(--accent)] bg-[var(--accent-soft)] p-4 sm:p-5" role="status">
+          <p class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--accent)]">{{ t('bike.offlineTitle') }}</p>
+          <p class="mt-2 text-sm">{{ t('bike.offlineBody') }}</p>
+          <p class="mt-2 font-mono text-xs text-[var(--muted)]">{{ t('bike.cachedAt') }}: {{ cachedAt ? formatDateTime(new Date(cachedAt)) : '—' }}</p>
+        </div>
         <div class="surface overflow-hidden">
           <div class="flex flex-wrap items-start justify-between gap-6 bg-[var(--ink)] p-6 text-[var(--surface)] sm:p-10">
             <div>
@@ -177,9 +217,9 @@ function printLabel() {
 
         <div class="no-print mt-6 flex flex-wrap gap-3">
           <UButton class="button-secondary" icon="i-lucide-printer" @click="printLabel">{{ t('bike.printLabel') }}</UButton>
-          <UButton class="button-secondary" icon="i-lucide-map-pin" @click="moveOpen = true; resetMoveState()">{{ t('bike.move') }}</UButton>
-          <UButton class="button-secondary" icon="i-lucide-refresh-cw" @click="rotateOpen = true; resetActionState()">{{ t('bike.rotateQr') }}</UButton>
-          <UButton class="button-danger" icon="i-lucide-ban" @click="revokeOpen = true; resetActionState()">{{ t('bike.revokeQr') }}</UButton>
+          <UButton class="button-secondary" icon="i-lucide-map-pin" :disabled="offline" @click="moveOpen = true; resetMoveState()">{{ t('bike.move') }}</UButton>
+          <UButton class="button-secondary" icon="i-lucide-refresh-cw" :disabled="offline" @click="rotateOpen = true; resetActionState()">{{ t('bike.rotateQr') }}</UButton>
+          <UButton class="button-danger" icon="i-lucide-ban" :disabled="offline" @click="revokeOpen = true; resetActionState()">{{ t('bike.revokeQr') }}</UButton>
         </div>
 
         <p v-if="actionError" class="no-print mt-4 text-sm text-[var(--danger)]" role="alert">{{ actionError }}</p>
@@ -189,7 +229,7 @@ function printLabel() {
           <div class="mt-4 grid gap-3">
             <UInput v-model="reason" class="w-full" :placeholder="t('bike.reasonPlaceholder')" />
             <div class="flex gap-2">
-              <UButton class="button-primary" :loading="pending" @click="rotateQr">{{ t('bike.confirmRotate') }}</UButton>
+              <UButton class="button-primary" :loading="pending" :disabled="offline" @click="rotateQr">{{ t('bike.confirmRotate') }}</UButton>
               <UButton class="button-secondary" variant="ghost" @click="rotateOpen = false">{{ t('common.cancel') }}</UButton>
             </div>
           </div>
@@ -200,7 +240,7 @@ function printLabel() {
           <div class="mt-4 grid gap-3">
             <UInput v-model="reason" class="w-full" :placeholder="t('bike.reasonPlaceholder')" />
             <div class="flex gap-2">
-              <UButton class="button-danger-solid" :loading="pending" @click="revokeQr">{{ t('bike.confirmRevoke') }}</UButton>
+              <UButton class="button-danger-solid" :loading="pending" :disabled="offline" @click="revokeQr">{{ t('bike.confirmRevoke') }}</UButton>
               <UButton class="button-secondary" variant="ghost" @click="revokeOpen = false">{{ t('common.cancel') }}</UButton>
             </div>
           </div>
@@ -212,71 +252,73 @@ function printLabel() {
             <UInput v-model="moveLocation" class="w-full" :placeholder="t('bike.newLocation')" />
             <UInput v-model="moveNote" class="w-full" :placeholder="t('bike.moveNote')" />
             <div class="flex gap-2">
-              <UButton class="button-primary" :loading="pending" @click="moveBike">{{ t('bike.confirmMove') }}</UButton>
+              <UButton class="button-primary" :loading="pending" :disabled="offline" @click="moveBike">{{ t('bike.confirmMove') }}</UButton>
               <UButton class="button-secondary" variant="ghost" @click="moveOpen = false">{{ t('common.cancel') }}</UButton>
             </div>
           </div>
         </div>
 
-        <section class="no-print surface mt-6 p-6">
-          <p class="panel-title">{{ t('bike.history') }}</p>
-          <div v-if="eventsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
-          <div v-else-if="eventsData?.events?.length" class="mt-4 space-y-3">
-            <div v-for="event in eventsData.events" :key="event.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <span class="font-mono text-xs font-bold uppercase tracking-[0.12em]">{{ event.action }}</span>
-                <span class="text-xs text-[var(--muted)]">{{ formatDateTime(event.createdAt) }}</span>
+        <template v-if="!offline">
+          <section class="no-print surface mt-6 p-6">
+            <p class="panel-title">{{ t('bike.history') }}</p>
+            <div v-if="eventsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+            <div v-else-if="eventsData?.events?.length" class="mt-4 space-y-3">
+              <div v-for="event in eventsData.events" :key="event.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="font-mono text-xs font-bold uppercase tracking-[0.12em]">{{ event.action }}</span>
+                  <span class="text-xs text-[var(--muted)]">{{ formatDateTime(event.createdAt) }}</span>
+                </div>
+                <p v-if="event.reason" class="mt-1 text-sm">{{ event.reason }}</p>
+                <p v-if="event.actorName || event.actorEmail" class="mt-1 text-xs text-[var(--muted)]">{{ event.actorName || event.actorEmail }}</p>
               </div>
-              <p v-if="event.reason" class="mt-1 text-sm">{{ event.reason }}</p>
-              <p v-if="event.actorName || event.actorEmail" class="mt-1 text-xs text-[var(--muted)]">{{ event.actorName || event.actorEmail }}</p>
             </div>
-          </div>
-          <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noHistory') }}</p>
-        </section>
+            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noHistory') }}</p>
+          </section>
 
-        <section class="no-print surface mt-6 p-6">
-          <p class="panel-title">{{ t('bike.locationHistory') }}</p>
-          <div v-if="locationsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
-          <div v-else-if="locationsData?.locations?.length" class="mt-4 space-y-3">
-            <div v-for="entry in locationsData.locations" :key="entry.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <span class="font-semibold">{{ entry.location }}</span>
-                <span class="text-xs text-[var(--muted)]">{{ formatDateTime(entry.startedAt) }} → {{ entry.endedAt ? formatDateTime(entry.endedAt) : t('bike.current') }}</span>
+          <section class="no-print surface mt-6 p-6">
+            <p class="panel-title">{{ t('bike.locationHistory') }}</p>
+            <div v-if="locationsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+            <div v-else-if="locationsData?.locations?.length" class="mt-4 space-y-3">
+              <div v-for="entry in locationsData.locations" :key="entry.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="font-semibold">{{ entry.location }}</span>
+                  <span class="text-xs text-[var(--muted)]">{{ formatDateTime(entry.startedAt) }} → {{ entry.endedAt ? formatDateTime(entry.endedAt) : t('bike.current') }}</span>
+                </div>
+                <p v-if="entry.note" class="mt-1 text-sm">{{ entry.note }}</p>
+                <p v-if="entry.actorName" class="mt-1 text-xs text-[var(--muted)]">{{ entry.actorName }}</p>
               </div>
-              <p v-if="entry.note" class="mt-1 text-sm">{{ entry.note }}</p>
-              <p v-if="entry.actorName" class="mt-1 text-xs text-[var(--muted)]">{{ entry.actorName }}</p>
             </div>
-          </div>
-          <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noLocationHistory') }}</p>
-        </section>
+            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noLocationHistory') }}</p>
+          </section>
 
-        <section class="no-print surface mt-6 p-6">
-          <p class="panel-title">{{ t('bike.rentalInfo') }}</p>
-          <div v-if="contextError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
-          <div v-else-if="context?.activeRental" class="mt-4 grid gap-3 sm:grid-cols-2">
-            <div><p class="data-label">{{ t('people.client') }}</p><p class="mt-1 font-semibold">{{ context.activeRental.client?.displayName || '—' }}</p></div>
-            <div><p class="data-label">{{ t('bike.status') }}</p><p class="mt-1 font-semibold">{{ tStatus(context.activeRental.status) }}</p></div>
-            <div><p class="data-label">{{ t('people.items') }}</p><p class="mt-1 font-semibold">{{ formatDateTime(context.activeRental.startDate) }} → {{ formatDateTime(context.activeRental.endDate) }}</p></div>
-            <div><p class="data-label">{{ t('people.dailyRate') }}</p><p class="mt-1 font-semibold">{{ formatMoney(context.activeRental.dailyRateMinor, context.activeRental.currency) }}</p></div>
-          </div>
-          <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noActiveRental') }}</p>
-
-          <div v-if="context?.deposits?.length" class="mt-6">
-            <p class="panel-title">{{ t('finance.deposits') }}</p>
-            <div v-for="deposit in context.deposits" :key="deposit.id" class="mt-2 flex items-center justify-between border-b border-[var(--line)] py-2 last:border-b-0">
-              <span>{{ tDepositType(deposit.type) }}</span>
-              <span>{{ formatMoney(deposit.amountMinor, deposit.currency) }} · {{ tStatus(deposit.status) }}</span>
+          <section class="no-print surface mt-6 p-6">
+            <p class="panel-title">{{ t('bike.rentalInfo') }}</p>
+            <div v-if="contextError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+            <div v-else-if="context?.activeRental" class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div><p class="data-label">{{ t('people.client') }}</p><p class="mt-1 font-semibold">{{ context.activeRental.client?.displayName || '—' }}</p></div>
+              <div><p class="data-label">{{ t('bike.status') }}</p><p class="mt-1 font-semibold">{{ tStatus(context.activeRental.status) }}</p></div>
+              <div><p class="data-label">{{ t('people.items') }}</p><p class="mt-1 font-semibold">{{ formatDateTime(context.activeRental.startDate) }} → {{ formatDateTime(context.activeRental.endDate) }}</p></div>
+              <div><p class="data-label">{{ t('people.dailyRate') }}</p><p class="mt-1 font-semibold">{{ formatMoney(context.activeRental.dailyRateMinor, context.activeRental.currency) }}</p></div>
             </div>
-          </div>
+            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noActiveRental') }}</p>
 
-          <div v-if="context?.obligations?.length" class="mt-6">
-            <p class="panel-title">{{ t('finance.obligations') }}</p>
-            <div v-for="obligation in context.obligations" :key="obligation.id" class="mt-2 flex items-center justify-between border-b border-[var(--line)] py-2 last:border-b-0">
-              <span>{{ tObligationType(obligation.type) }}</span>
-              <span>{{ formatMoney(obligation.amountMinor, obligation.currency) }} · {{ tStatus(obligation.status) }}</span>
+            <div v-if="context?.deposits?.length" class="mt-6">
+              <p class="panel-title">{{ t('finance.deposits') }}</p>
+              <div v-for="deposit in context.deposits" :key="deposit.id" class="mt-2 flex items-center justify-between border-b border-[var(--line)] py-2 last:border-b-0">
+                <span>{{ tDepositType(deposit.type) }}</span>
+                <span>{{ formatMoney(deposit.amountMinor, deposit.currency) }} · {{ tStatus(deposit.status) }}</span>
+              </div>
             </div>
-          </div>
-        </section>
+
+            <div v-if="context?.obligations?.length" class="mt-6">
+              <p class="panel-title">{{ t('finance.obligations') }}</p>
+              <div v-for="obligation in context.obligations" :key="obligation.id" class="mt-2 flex items-center justify-between border-b border-[var(--line)] py-2 last:border-b-0">
+                <span>{{ tObligationType(obligation.type) }}</span>
+                <span>{{ formatMoney(obligation.amountMinor, obligation.currency) }} · {{ tStatus(obligation.status) }}</span>
+              </div>
+            </div>
+          </section>
+        </template>
 
         <section class="print-only print-label">
           <div class="print-header">

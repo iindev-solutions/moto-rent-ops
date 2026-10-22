@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BikeSummary, BikesResponse } from '@book-moto/contracts'
 import { normalizeLocatorToken } from '@book-moto/domain/qr'
+import { cacheBikeCards } from '~/composables/useBikeCache'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -40,6 +41,11 @@ const { data, error, status, refresh } = await useFetch<BikesResponse>(() => {
 const bikes = computed(() => data.value?.bikes || [])
 const total = computed(() => data.value?.total ?? bikes.value.length)
 const hasMore = computed(() => data.value?.hasMore ?? false)
+watch(data, (value) => {
+  if (value?.bikes?.length) {
+    void cacheBikeCards(value.bikes)
+  }
+}, { immediate: true })
 const printHref = computed(() => {
   const params = new URLSearchParams()
   if (search.value) params.set('search', search.value)
