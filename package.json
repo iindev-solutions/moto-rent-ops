@@ -15,7 +15,8 @@
     "db:generate": "npm --workspace @book-moto/db run generate",
     "db:migrate": "npm --workspace @book-moto/db run migrate",
     "db:seed": "npm --workspace @book-moto/db run seed",
-    "outbox:worker": "npm --workspace @book-moto/web run outbox:worker"
+    "outbox:worker": "npm --workspace @book-moto/web run outbox:worker",
+    "import:legacy": "tsx apps/web/scripts/import-legacy.ts"
   },
   "engines": {
     "node": ">=22.0.0"

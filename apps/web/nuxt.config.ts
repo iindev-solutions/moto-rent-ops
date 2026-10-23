@@ -74,8 +74,10 @@ export default defineNuxtConfig({
       headers: {
         'x-frame-options': 'DENY',
         'x-content-type-options': 'nosniff',
+        'x-permitted-cross-domain-policies': 'none',
         'referrer-policy': 'strict-origin-when-cross-origin',
         'permissions-policy': 'camera=(self), microphone=(), geolocation=()',
+        'strict-transport-security': 'max-age=31536000; includeSubDomains',
       },
     },
   },

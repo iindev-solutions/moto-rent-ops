@@ -99,8 +99,45 @@ describe('rental lifecycle', () => {
     expect((await api('/api/payments')).status).toBe(401)
   })
 
+  it('sets browser hardening headers', async () => {
+    const response = await fetch(url('/login'))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-frame-options')).toBe('DENY')
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(response.headers.get('x-permitted-cross-domain-policies')).toBe('none')
+    expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+    expect(response.headers.get('permissions-policy')).toContain('camera=(self)')
+    expect(response.headers.get('strict-transport-security')).toContain('max-age=31536000')
+  })
+
+  it('exposes a database health probe without private data', async () => {
+    const response = await fetch(url('/api/health'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      status: 'ok',
+      service: 'book-moto-web',
+      database: 'ok',
+    })
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
   it('logs the seeded owner in', async () => {
     await login()
+  })
+
+  it('persists login throttling in the database after ten failures', async () => {
+    const email = 'rate-limit-probe@moto.test'
+    const statuses: number[] = []
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      const response = await fetch(url('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password: 'wrong-password' }),
+      })
+      statuses.push(response.status)
+    }
+    expect(statuses.slice(0, 10)).toEqual(Array(10).fill(401))
+    expect(statuses[10]).toBe(429)
   })
 
   it('returns monthly payments with payer names and a month filter', async () => {
@@ -909,5 +946,266 @@ describe('manual locator codes', () => {
       body: JSON.stringify({ limit: 1 }),
     })
     expect([401, 403]).toContain(badWorker.status)
+  })
+})
+
+describe('legacy import', () => {
+  const snapshot = {
+    clients: [{
+      sourceId: 'e2e-client-1',
+      displayName: 'Legacy E2E Rider',
+      preferredChannel: 'phone',
+      contacts: [{ channel: 'phone', value: '+84900000002', isPrimary: true }],
+    }],
+    motorcycles: [{
+      sourceId: 'e2e-bike-1',
+      assetCode: 'LEGACY-E2E-1',
+      model: 'Honda Future',
+      plate: '59-L1 902',
+      status: 'rented',
+      location: 'District 3',
+    }],
+    agreements: [{
+      sourceId: 'e2e-agreement-1',
+      clientSourceId: 'e2e-client-1',
+      status: 'active',
+      startDate: '2026-10-01T00:00:00+07:00',
+      endDate: '2026-11-01T00:00:00+07:00',
+    }],
+    rentalItems: [{
+      sourceId: 'e2e-item-1',
+      agreementSourceId: 'e2e-agreement-1',
+      motorcycleSourceId: 'e2e-bike-1',
+      startDate: '2026-10-01T00:00:00+07:00',
+      endDate: '2026-11-01T00:00:00+07:00',
+      dailyRateMinor: 220_000,
+      currency: 'VND',
+      status: 'active',
+    }],
+    obligations: [{
+      sourceId: 'e2e-obligation-1',
+      clientSourceId: 'e2e-client-1',
+      agreementSourceId: 'e2e-agreement-1',
+      rentalItemSourceId: 'e2e-item-1',
+      type: 'rent',
+      amountMinor: 1_100_000,
+      currency: 'VND',
+      dueDate: '2026-10-15T00:00:00+07:00',
+    }],
+    receipts: [{
+      sourceId: 'e2e-receipt-1',
+      clientSourceId: 'e2e-client-1',
+      amountMinor: 440_000,
+      currency: 'VND',
+      method: 'cash',
+      receivedAt: '2026-10-05T00:00:00+07:00',
+      allocations: [{ obligationSourceId: 'e2e-obligation-1', amountMinor: 440_000 }],
+    }],
+    deposits: [{
+      sourceId: 'e2e-deposit-1',
+      clientSourceId: 'e2e-client-1',
+      agreementSourceId: 'e2e-agreement-1',
+      type: 'cash',
+      status: 'held',
+      amountMinor: 2_200_000,
+      currency: 'VND',
+      receivedAt: '2026-10-01T00:00:00+07:00',
+    }],
+    documentCustodies: [{
+      sourceId: 'e2e-doc-1',
+      clientSourceId: 'e2e-client-1',
+      documentType: 'passport',
+      maskedNumber: 'C01X00***',
+      status: 'held',
+      receivedAt: '2026-10-01T00:00:00+07:00',
+    }],
+  }
+
+  async function importedBike() {
+    const list = await api('/api/bikes?search=LEGACY-E2E-1')
+    return (list.data.bikes as Json[]).find(row => row.assetCode === 'LEGACY-E2E-1')
+  }
+
+  it('stages a dry run without writing target rows', async () => {
+    const dryRun = await api('/api/imports/legacy', {
+      json: { snapshot, apply: false, label: 'e2e dry run' },
+    })
+    expect(dryRun.status).toBe(200)
+    expect(dryRun.data.status).toBe('dry_run')
+    expect(dryRun.data.report.tables.motorcycles).toMatchObject({ total: 1, valid: 1, imported: 0 })
+    expect(dryRun.data.report.importableTotals['obligations:VND']).toBe(1_100_000)
+    expect(await importedBike()).toBeUndefined()
+
+    const batches = await api('/api/imports/legacy')
+    expect(batches.status).toBe(200)
+    expect((batches.data.batches as Json[]).find(batch => batch.label === 'e2e dry run')).toMatchObject({ status: 'dry_run' })
+  })
+
+  it('reports duplicate source ids without failing the staging insert', async () => {
+    const duplicate = {
+      clients: [
+        { sourceId: 'dup-client-1', displayName: 'First Duplicate', preferredChannel: 'phone', contacts: [] },
+        { sourceId: 'dup-client-1', displayName: 'Second Duplicate', preferredChannel: 'phone', contacts: [] },
+      ],
+    }
+    const result = await api('/api/imports/legacy', {
+      json: { snapshot: duplicate, apply: false, label: 'e2e duplicate source id' },
+    })
+    expect(result.status).toBe(200)
+    expect(result.data.report.tables.clients).toMatchObject({ total: 2, valid: 1, invalid: 1 })
+    expect(result.data.report.issues.some((issue: Json) => issue.sourceId === 'dup-client-1' && issue.errors.some((error: string) => error.includes('duplicate')))).toBe(true)
+  })
+
+  it('rejects invalid references atomically', async () => {
+    const invalid = {
+      ...snapshot,
+      obligations: [{ ...snapshot.obligations[0], clientSourceId: 'missing-client' }],
+    }
+    const rejected = await api('/api/imports/legacy', {
+      json: { snapshot: invalid, apply: true, label: 'e2e invalid' },
+    })
+    expect(rejected.status).toBe(422)
+    expect(rejected.data.data.batchId).toBeTruthy()
+    expect(rejected.data.data.report.issues.some((issue: Json) => issue.sourceId === 'e2e-obligation-1')).toBe(true)
+    expect(await importedBike()).toBeUndefined()
+  })
+
+  it('invalidates dependents even when the invalid parent is listed later', async () => {
+    const dependent = {
+      clients: [{ sourceId: 'dep-client-1', displayName: 'Dependent Rider', preferredChannel: 'phone', contacts: [] }],
+      documentCustodies: [{
+        sourceId: 'dep-doc-1',
+        clientSourceId: 'dep-client-1',
+        documentType: 'passport',
+        status: 'returned',
+        receivedAt: '2026-10-01T00:00:00+07:00',
+      }],
+      deposits: [{
+        sourceId: 'dep-deposit-1',
+        clientSourceId: 'dep-client-1',
+        type: 'document_custody',
+        status: 'held',
+        documentCustodySourceId: 'dep-doc-1',
+        receivedAt: '2026-10-01T00:00:00+07:00',
+      }],
+    }
+    const rejected = await api('/api/imports/legacy', {
+      json: { snapshot: dependent, apply: true, label: 'e2e dependent invalid' },
+    })
+    expect(rejected.status).toBe(422)
+    const issue = rejected.data.data.report.issues.find((row: Json) => row.sourceId === 'dep-deposit-1')
+    expect(issue?.errors.some((error: string) => error.includes('referenced row') && error.includes('dep-doc-1'))).toBe(true)
+  })
+
+  it('rejects aggregate allocations that exceed one obligation', async () => {
+    const overAllocated = {
+      ...snapshot,
+      receipts: [
+        { ...snapshot.receipts[0], sourceId: 'e2e-receipt-a', amountMinor: 600_000, allocations: [{ obligationSourceId: 'e2e-obligation-1', amountMinor: 600_000 }] },
+        { ...snapshot.receipts[0], sourceId: 'e2e-receipt-b', amountMinor: 600_000, allocations: [{ obligationSourceId: 'e2e-obligation-1', amountMinor: 600_000 }] },
+      ],
+    }
+    const rejected = await api('/api/imports/legacy', {
+      json: { snapshot: overAllocated, apply: true, label: 'e2e overallocated' },
+    })
+    expect(rejected.status).toBe(422)
+    expect(rejected.data.data.report.issues.some((issue: Json) => issue.errors.some((error: string) => error.includes('exceeds its amount')))).toBe(true)
+    expect(await importedBike()).toBeUndefined()
+  })
+
+  it('rejects duplicate allocations to the same obligation', async () => {
+    const duplicateAllocations = {
+      ...snapshot,
+      receipts: [{
+        ...snapshot.receipts[0],
+        sourceId: 'e2e-receipt-duplicate',
+        amountMinor: 200_000,
+        allocations: [
+          { obligationSourceId: 'e2e-obligation-1', amountMinor: 100_000 },
+          { obligationSourceId: 'e2e-obligation-1', amountMinor: 100_000 },
+        ],
+      }],
+    }
+    const rejected = await api('/api/imports/legacy', {
+      json: { snapshot: duplicateAllocations, apply: true, label: 'e2e duplicate allocations' },
+    })
+    expect(rejected.status).toBe(422)
+    expect(rejected.data.data.report.issues.some((issue: Json) => issue.errors.some((error: string) => error.includes('duplicate obligation')))).toBe(true)
+    expect(await importedBike()).toBeUndefined()
+  })
+
+  it('applies a valid snapshot with provenance and generated QR credentials', async () => {
+    const applied = await api('/api/imports/legacy', {
+      json: { snapshot, apply: true, label: 'e2e apply' },
+    })
+    expect(applied.status).toBe(200)
+    expect(applied.data.status).toBe('applied')
+    expect(applied.data.report.tables.motorcycles).toMatchObject({ total: 1, imported: 1 })
+    expect(applied.data.report.tables.receipts).toMatchObject({ total: 1, imported: 1 })
+
+    const bike = await importedBike()
+    expect(bike, 'the imported motorcycle must be visible').toBeTruthy()
+    expect(bike!.status).toBe('rented')
+    expect(bike!.manualCode).toMatch(/^[0-9A-HJKMNP-TV-Z]{10}$/)
+    expect(bike!.qrToken).toBeTruthy()
+
+    const people = await api('/api/people?limit=50')
+    const person = (people.data.clients as Json[]).find(row => row.displayName === 'Legacy E2E Rider')
+    expect(person, 'the imported client must be visible').toBeTruthy()
+    expect(person).toMatchObject({ contactCount: 1, openDocumentCount: 1, activeAgreementCount: 1 })
+
+    const detail = await api(`/api/people/${person!.id}`)
+    expect(detail.status).toBe(200)
+    expect(detail.data.agreements[0]).toMatchObject({ status: 'active', version: 1, itemCount: 1 })
+    const agreement = await api(`/api/agreements/${detail.data.agreements[0].id}`)
+    expect(agreement.status).toBe(200)
+    expect(agreement.data.items[0]).toMatchObject({ assetCode: 'LEGACY-E2E-1', status: 'active' })
+
+    const payments = await api('/api/payments?month=2026-10')
+    expect(payments.status).toBe(200)
+    expect((payments.data.receipts as Json[]).some(row => row.amountMinor === 440_000)).toBe(true)
+
+    const batches = await api('/api/imports/legacy')
+    expect((batches.data.batches as Json[]).find(batch => batch.label === 'e2e apply')).toMatchObject({ status: 'applied', importedRowCount: 8 })
+  })
+
+  it('imports a closed cash deposit with its disposition history', async () => {
+    const closedDeposit = {
+      clients: [{ sourceId: 'closed-client-1', displayName: 'Closed Deposit Rider', preferredChannel: 'phone', contacts: [] }],
+      deposits: [{
+        sourceId: 'closed-deposit-1',
+        clientSourceId: 'closed-client-1',
+        type: 'cash',
+        status: 'returned',
+        amountMinor: 500_000,
+        receivedAt: '2026-09-01T00:00:00+07:00',
+        returnedAt: '2026-09-10T00:00:00+07:00',
+        dispositions: [{ type: 'returned', amountMinor: 500_000 }],
+      }],
+    }
+    const applied = await api('/api/imports/legacy', {
+      json: { snapshot: closedDeposit, apply: true, label: 'e2e closed deposit' },
+    })
+    expect(applied.status).toBe(200)
+    expect(applied.data.report.tables.deposits).toMatchObject({ total: 1, imported: 1 })
+    expect(applied.data.report.sourceTotals['deposit_dispositions:VND']).toBe(500_000)
+
+    const finance = await api('/api/finance')
+    expect(finance.status).toBe(200)
+    expect((finance.data.deposits as Json[]).find(row => row.clientName === 'Closed Deposit Rider')).toMatchObject({
+      status: 'returned',
+      amountMinor: 500_000,
+    })
+  })
+
+  it('replays idempotently and reports every source row as duplicate', async () => {
+    const replay = await api('/api/imports/legacy', {
+      json: { snapshot, apply: true, label: 'e2e replay' },
+    })
+    expect(replay.status).toBe(200)
+    expect(replay.data.status).toBe('applied')
+    expect(replay.data.counts.total).toBe(8)
+    expect(Object.values(replay.data.counts).filter((value: any) => value?.imported).every((value: any) => value.imported === 0)).toBe(true)
+    expect((await importedBike())!.assetCode).toBe('LEGACY-E2E-1')
   })
 })

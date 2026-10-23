@@ -1,7 +1,8 @@
 import { verify } from 'argon2'
-import { eq } from 'drizzle-orm'
+import { createHash } from 'node:crypto'
+import { eq, lt, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, users } from '@book-moto/db'
+import { getDb, rateLimitBuckets, users } from '@book-moto/db'
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(320),
@@ -9,26 +10,46 @@ const loginSchema = z.object({
   returnTo: z.string().optional(),
 })
 
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
 const ATTEMPT_WINDOW_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS = 10
 
-function checkRateLimit(key: string) {
-  const now = Date.now()
-  const entry = loginAttempts.get(key)
-  if (!entry || entry.resetAt < now) {
-    loginAttempts.set(key, { count: 1, resetAt: now + ATTEMPT_WINDOW_MS })
-    return
-  }
-  entry.count += 1
-  if (entry.count > MAX_ATTEMPTS) {
+function rateLimitKey(email: string, ip: string): string {
+  return createHash('sha256').update(`${email.toLowerCase()}|${ip}`).digest('hex')
+}
+
+async function checkRateLimit(key: string) {
+  const db = await getDb()
+  const now = new Date()
+  const resetAt = new Date(now.getTime() + ATTEMPT_WINDOW_MS)
+  const [row] = await db.insert(rateLimitBuckets).values({
+    key,
+    count: 1,
+    resetAt,
+    updatedAt: now,
+  }).onConflictDoUpdate({
+    target: rateLimitBuckets.key,
+    set: {
+      count: sql`CASE WHEN ${rateLimitBuckets.resetAt} <= now() THEN 1 ELSE ${rateLimitBuckets.count} + 1 END`,
+      resetAt: sql`CASE WHEN ${rateLimitBuckets.resetAt} <= now() THEN now() + interval '10 minutes' ELSE ${rateLimitBuckets.resetAt} END`,
+      updatedAt: sql`now()`,
+    },
+  }).returning()
+
+  if (Number(row?.count ?? 0) > MAX_ATTEMPTS) {
     throw createError({ statusCode: 429, statusMessage: 'Too many login attempts. Try again later.' })
   }
-  if (loginAttempts.size > 10000) {
-    for (const [cacheKey, cacheEntry] of loginAttempts) {
-      if (cacheEntry.resetAt < now) loginAttempts.delete(cacheKey)
-    }
+
+  // Opportunistic cleanup keeps the durable bucket table bounded.
+  try {
+    await db.delete(rateLimitBuckets).where(lt(rateLimitBuckets.resetAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)))
+  } catch {
+    // Cleanup is not part of the authentication decision.
   }
+}
+
+async function clearRateLimit(key: string) {
+  const db = await getDb()
+  await db.delete(rateLimitBuckets).where(eq(rateLimitBuckets.key, key))
 }
 
 export default defineEventHandler(async (event) => {
@@ -37,21 +58,23 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid credentials payload' })
   }
 
-  const clientKey = `${parsed.data.email.toLowerCase()}|${getRequestIP(event, { xForwardedFor: true }) || 'unknown'}`
-  checkRateLimit(clientKey)
+  const email = parsed.data.email.toLowerCase()
+  const trustProxy = process.env.NUXT_TRUST_PROXY === 'true'
+  const clientKey = rateLimitKey(email, getRequestIP(event, { xForwardedFor: trustProxy }) || 'unknown')
+  await checkRateLimit(clientKey)
 
   const db = await getDb()
   const [user] = await db
     .select()
     .from(users)
-    .where(eq(users.email, parsed.data.email.toLowerCase()))
+    .where(eq(users.email, email))
     .limit(1)
 
   if (!user || !user.active || !await verify(user.passwordHash, parsed.data.password)) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
   }
 
-  loginAttempts.delete(clientKey)
+  await clearRateLimit(clientKey)
 
   await setUserSession(event, {
     user: {

@@ -8,7 +8,8 @@
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
-    "outbox:worker": "tsx scripts/outbox-worker.ts"
+    "outbox:worker": "tsx scripts/outbox-worker.ts",
+    "import:legacy": "tsx scripts/import-legacy.ts"
   },
   "dependencies": {
     "@book-moto/contracts": "*",

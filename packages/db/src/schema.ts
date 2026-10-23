@@ -424,3 +424,57 @@ export const outboxAttempts = pgTable('outbox_attempts', {
   check('outbox_attempts_attempt_chk', sql`${table.attempt} > 0`),
   check('outbox_attempts_epoch_chk', sql`${table.epoch} >= 0`),
 ])
+
+// Durable login throttling. Keys are SHA-256 hashes of normalized email + IP,
+// so raw identifiers are not retained in this table.
+export const rateLimitBuckets = pgTable('rate_limit_buckets', {
+  key: varchar('key', { length: 128 }).primaryKey(),
+  count: integer('count').notNull().default(0),
+  resetAt: timestamp('reset_at', { withTimezone: true }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('rate_limit_buckets_reset_idx').on(table.resetAt),
+  check('rate_limit_buckets_count_chk', sql`${table.count} >= 0`),
+])
+
+// Legacy migration staging. Batches record the dry-run/apply report; rows
+// preserve the source table/id, raw payload, validation errors and target id.
+export const legacyImportBatches = pgTable('legacy_import_batches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  label: varchar('label', { length: 160 }),
+  status: varchar('status', { length: 16 }).notNull().default('dry_run'),
+  sourceChecksum: varchar('source_checksum', { length: 64 }).notNull(),
+  sourceRowCount: integer('source_row_count').notNull().default(0),
+  validRowCount: integer('valid_row_count').notNull().default(0),
+  invalidRowCount: integer('invalid_row_count').notNull().default(0),
+  duplicateRowCount: integer('duplicate_row_count').notNull().default(0),
+  importedRowCount: integer('imported_row_count').notNull().default(0),
+  report: jsonb('report').$type<Record<string, unknown>>().notNull().default({}),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  appliedAt: timestamp('applied_at', { withTimezone: true }),
+}, (table) => [
+  index('legacy_import_batches_created_idx').on(table.createdAt),
+  check('legacy_import_batches_status_chk', sql`${table.status} IN ('dry_run', 'applied', 'failed')`),
+  check('legacy_import_batches_counts_chk', sql`${table.sourceRowCount} >= 0 AND ${table.validRowCount} >= 0 AND ${table.invalidRowCount} >= 0 AND ${table.duplicateRowCount} >= 0 AND ${table.importedRowCount} >= 0`),
+])
+
+export const legacyImportRows = pgTable('legacy_import_rows', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  batchId: uuid('batch_id').notNull().references(() => legacyImportBatches.id, { onDelete: 'cascade' }),
+  sourceTable: varchar('source_table', { length: 40 }).notNull(),
+  sourceId: varchar('source_id', { length: 120 }).notNull(),
+  sourceHash: varchar('source_hash', { length: 64 }).notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('pending'),
+  targetEntityType: varchar('target_entity_type', { length: 40 }),
+  targetEntityId: uuid('target_entity_id'),
+  errors: jsonb('errors').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('legacy_import_rows_batch_source_idx').on(table.batchId, table.sourceTable, table.sourceId),
+  index('legacy_import_rows_batch_idx').on(table.batchId),
+  index('legacy_import_rows_target_idx').on(table.targetEntityType, table.targetEntityId),
+  check('legacy_import_rows_status_chk', sql`${table.status} IN ('pending', 'valid', 'invalid', 'imported', 'duplicate', 'skipped')`),
+])

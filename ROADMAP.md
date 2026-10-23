@@ -414,6 +414,8 @@ QR-метка на байке → сканирование в PWA → точна
 - контролируемый пилот и обучение сотрудников;
 - freeze legacy и переход на новую систему как единственный источник операций.
 
+**Статус 2026-10-24:** staging → validation → dry-run → apply, source-row provenance, duplicate report, deterministic IDs and reconciliation totals implemented and verified with a synthetic snapshot. Real legacy snapshot, owner reconciliation, physical device/printer checks, backup/restore drill and pilot sign-off remain open.
+
 **R1 считается принятым, когда** весь текущий активный парк и открытые обязательства перенесены и сверены; печатный QR открывает нужную карточку на поддерживаемых устройствах; выдача/возврат, оплаты, депозит, документы, инциденты, аудит, восстановление и минимальные Telegram-события доказуемо работают.
 
 ### После R1
