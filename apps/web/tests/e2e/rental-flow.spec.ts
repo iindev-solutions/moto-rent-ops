@@ -1056,6 +1056,13 @@ describe('legacy import', () => {
     expect(result.data.report.issues.some((issue: Json) => issue.sourceId === 'dup-client-1' && issue.errors.some((error: string) => error.includes('duplicate')))).toBe(true)
   })
 
+  it('rejects unknown top-level snapshot tables', async () => {
+    const rejected = await api('/api/imports/legacy', {
+      json: { snapshot: { bikes: [] }, apply: false },
+    })
+    expect(rejected.status).toBe(400)
+  })
+
   it('rejects invalid references atomically', async () => {
     const invalid = {
       ...snapshot,

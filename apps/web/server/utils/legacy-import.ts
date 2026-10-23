@@ -184,7 +184,7 @@ const snapshotSchema = z.object({
   receipts: z.array(z.unknown()).optional().default([]),
   deposits: z.array(z.unknown()).optional().default([]),
   documentCustodies: z.array(z.unknown()).optional().default([]),
-})
+}).strict()
 
 type ParsedClient = z.infer<typeof clientSchema>
 type ParsedMotorcycle = z.infer<typeof motorcycleSchema>
