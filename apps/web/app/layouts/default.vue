@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { clearBikeCache } from '~/composables/useBikeCache'
+import { clearOfflineAccess } from '~/composables/useOfflineAccess'
 
 const route = useRoute()
 const { t } = useLocale()
@@ -51,6 +52,7 @@ const pageTitle = computed(() => {
 async function signOut() {
   userMenuOpen.value = false
   await clearBikeCache()
+  clearOfflineAccess()
   await clear()
   await navigateTo('/login')
 }

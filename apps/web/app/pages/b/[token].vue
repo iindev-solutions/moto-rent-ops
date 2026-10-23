@@ -184,7 +184,7 @@ function printLabel() {
     </header>
 
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-      <button type="button" class="quiet-link inline-flex items-center gap-2 text-[var(--ink)] underline decoration-2 underline-offset-4 no-print" @click="goBack">← {{ t('bike.back') }}</button>
+      <button v-if="!offline" type="button" class="quiet-link inline-flex items-center gap-2 text-[var(--ink)] underline decoration-2 underline-offset-4 no-print" @click="goBack">← {{ t('bike.back') }}</button>
 
       <div v-if="status === 'pending'" class="surface mt-8 p-8 no-print">
         <USkeleton class="h-6 w-32" />
@@ -215,8 +215,8 @@ function printLabel() {
           </div>
         </div>
 
-        <div class="no-print mt-6 flex flex-wrap gap-3">
-          <UButton class="button-secondary" icon="i-lucide-printer" @click="printLabel">{{ t('bike.printLabel') }}</UButton>
+        <div class="no-print mt-6 flex flex-wrap gap-3" :class="{ 'opacity-40': offline }">
+          <UButton class="button-secondary" icon="i-lucide-printer" :disabled="offline" @click="printLabel">{{ t('bike.printLabel') }}</UButton>
           <UButton class="button-secondary" icon="i-lucide-map-pin" :disabled="offline" @click="moveOpen = true; resetMoveState()">{{ t('bike.move') }}</UButton>
           <UButton class="button-secondary" icon="i-lucide-refresh-cw" :disabled="offline" @click="rotateOpen = true; resetActionState()">{{ t('bike.rotateQr') }}</UButton>
           <UButton class="button-danger" icon="i-lucide-ban" :disabled="offline" @click="revokeOpen = true; resetActionState()">{{ t('bike.revokeQr') }}</UButton>

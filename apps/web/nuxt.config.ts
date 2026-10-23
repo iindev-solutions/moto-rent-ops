@@ -1,9 +1,9 @@
 import { config } from 'dotenv'
 import { resolve } from 'node:path'
 
-if (process.env.NODE_ENV !== 'production') {
-  config({ path: resolve(process.cwd(), '../../.env') })
-}
+// Load local defaults during build and prerender. dotenv does not override
+// variables already provided by the deployment environment.
+config({ path: resolve(process.cwd(), '../../.env') })
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -67,6 +67,7 @@ export default defineNuxtConfig({
     '/agreements/**': { ssr: false },
     '/print/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
     '/b/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
+    '/offline': { ssr: false },
     '/api/**': { headers: { 'cache-control': 'no-store' } },
     '/**': {
       headers: {
@@ -75,6 +76,11 @@ export default defineNuxtConfig({
         'referrer-policy': 'strict-origin-when-cross-origin',
         'permissions-policy': 'camera=(self), microphone=(), geolocation=()',
       },
+    },
+  },
+  nitro: {
+    prerender: {
+      routes: ['/offline'],
     },
   },
   pwa: {
@@ -96,7 +102,7 @@ export default defineNuxtConfig({
     },
     workbox: {
       globPatterns: ['**/*.{js,css,html,svg,png,ico,webp}'],
-      navigateFallback: '/',
+      navigateFallback: '/offline',
       cleanupOutdatedCaches: true,
      },
   },
