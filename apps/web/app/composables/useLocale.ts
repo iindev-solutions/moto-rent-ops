@@ -39,6 +39,10 @@ const statusKeys: Record<string, MessageKey> = {
   expired: 'status.expired',
   expiring_soon: 'status.expiringSoon',
   valid: 'status.valid',
+  pending: 'notifications.statusPending',
+  processing: 'notifications.statusProcessing',
+  sent: 'notifications.statusSent',
+  dead_letter: 'notifications.statusDeadLetter',
 }
 
 const priorityKeys: Record<string, MessageKey> = {

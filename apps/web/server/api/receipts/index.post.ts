@@ -1,7 +1,8 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, receipts, allocations, obligations, auditEvents, idempotencyRecords } from '@book-moto/db'
+import { getDb, receipts, allocations, obligations, auditEvents, idempotencyRecords, clients } from '@book-moto/db'
 import { createHash } from 'node:crypto'
+import { enqueueOutbox } from '../../utils/outbox'
 
 const allocationSchema = z.object({
   obligationId: z.string().uuid(),
@@ -93,6 +94,31 @@ export default defineEventHandler(async (event) => {
         entityType: 'receipt',
         entityId: receipt.id,
         metadata: { amountMinor: receipt.amountMinor, allocatedMinor: totalAllocated },
+      })
+
+      let clientName: string | null = null
+      if (receipt.clientId) {
+        const [client] = await tx.select({ displayName: clients.displayName })
+          .from(clients)
+          .where(eq(clients.id, receipt.clientId))
+          .limit(1)
+        clientName = client?.displayName ?? null
+      }
+
+      await enqueueOutbox(tx, {
+        eventType: 'receipt.recorded',
+        aggregateType: 'receipt',
+        aggregateId: receipt.id,
+        dedupeKey: `receipt.recorded:${receipt.id}`,
+        payload: {
+          receiptId: receipt.id,
+          amountMinor: receipt.amountMinor,
+          currency: receipt.currency,
+          method: receipt.method,
+          clientId: receipt.clientId,
+          clientName,
+          receivedAt: receipt.receivedAt.toISOString(),
+        },
       })
 
       if (idempotencyKey && requestHash) {

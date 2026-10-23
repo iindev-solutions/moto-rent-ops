@@ -1,5 +1,39 @@
 import { setup, url } from '@nuxt/test-utils/e2e'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
+
+const telegramRequests: string[] = []
+let telegramFail = false
+const telegramServer = createServer((req, res) => {
+  let body = ''
+  req.on('data', chunk => { body += chunk })
+  req.on('end', () => {
+    telegramRequests.push(body)
+    res.setHeader('content-type', 'application/json')
+    if (telegramFail) {
+      res.statusCode = 500
+      res.end(JSON.stringify({ ok: false, description: 'mock Telegram failure' }))
+      return
+    }
+    res.statusCode = 200
+    res.end(JSON.stringify({ ok: true, result: { message_id: telegramRequests.length } }))
+  })
+})
+await new Promise<void>((resolve, reject) => {
+  telegramServer.once('error', reject)
+  telegramServer.listen(0, '127.0.0.1', () => resolve())
+})
+const telegramPort = (telegramServer.address() as AddressInfo).port
+process.env.TELEGRAM_BOT_TOKEN = 'test-token'
+process.env.TELEGRAM_CHAT_ID = 'test-chat'
+process.env.TELEGRAM_API_BASE_URL = `http://127.0.0.1:${telegramPort}`
+process.env.OUTBOX_WORKER_SECRET = 'test-outbox-secret'
+process.env.OUTBOX_MAX_ATTEMPTS = '2'
+process.env.OUTBOX_RETRY_BASE_MS = '0'
+afterAll(() => {
+  telegramServer.close()
+})
 
 await setup({ dev: true })
 
@@ -727,5 +761,153 @@ describe('manual locator codes', () => {
     const updated = (after.data.bikes as Json[]).find(row => row.assetCode === 'BM-010')
     expect(updated!.manualCode).toBe(rotated.data.manualCode)
     expect(updated!.qrToken).toBe(rotated.data.qrToken)
+  })
+
+  it('writes a receipt event in the same transaction and sends a non-confirming Telegram message', async () => {
+    telegramFail = false
+    const created = await api('/api/receipts', {
+      json: { amountMinor: 123_000, currency: 'VND', method: 'cash' },
+    })
+    expect(created.status).toBe(200)
+    const receiptId = created.data.receipt.id as string
+
+    const list = await api(`/api/outbox?aggregateId=${receiptId}`)
+    expect(list.status).toBe(200)
+    expect(list.data.events).toHaveLength(1)
+    const event = list.data.events[0] as Json
+    expect(event).toMatchObject({
+      eventType: 'receipt.recorded',
+      aggregateType: 'receipt',
+      aggregateId: receiptId,
+      status: 'pending',
+      attempts: 0,
+    })
+    expect(event.payload.amountMinor).toBe(123_000)
+    expect(event.payload).not.toHaveProperty('passport')
+
+    const processed = await api('/api/outbox/process', {
+      method: 'POST',
+      json: { limit: 100 },
+      headers: { 'x-outbox-worker-secret': 'test-outbox-secret' },
+    })
+    expect(processed.status).toBe(200)
+    expect(processed.data.configured).toBe(true)
+    expect(processed.data.sent).toBeGreaterThanOrEqual(1)
+
+    const detail = await api(`/api/outbox/${event.id}`)
+    expect(detail.status).toBe(200)
+    expect(detail.data.event.status).toBe('sent')
+    expect(detail.data.event.attempts).toBe(1)
+    expect(detail.data.attempts).toHaveLength(1)
+    expect(detail.data.attempts[0].status).toBe('sent')
+    expect(detail.data.attempts[0].httpStatus).toBe(200)
+
+    const telegramText = telegramRequests
+      .map(body => JSON.parse(body).text as string)
+      .find(text => text.includes('123.000 VND'))
+    expect(telegramText).toBeTruthy()
+    expect(telegramText).toContain('not a payment confirmation')
+    expect(telegramText).not.toMatch(/passport|phone|email|@/i)
+  })
+
+  it('backs off a failed Telegram send, journals it and retries without changing the receipt', async () => {
+    telegramFail = true
+    const created = await api('/api/receipts', {
+      json: { amountMinor: 456_000, currency: 'VND', method: 'cash' },
+    })
+    expect(created.status).toBe(200)
+    const receiptId = created.data.receipt.id as string
+    const list = await api(`/api/outbox?aggregateId=${receiptId}`)
+    const event = list.data.events[0] as Json
+
+    const processed = await api('/api/outbox/process', {
+      method: 'POST',
+      json: { limit: 100 },
+      headers: { 'x-outbox-worker-secret': 'test-outbox-secret' },
+    })
+    expect(processed.status).toBe(200)
+    expect(processed.data.failed).toBeGreaterThanOrEqual(1)
+
+    const failed = await api(`/api/outbox/${event.id}`)
+    expect(failed.status).toBe(200)
+    expect(failed.data.event.status).toBe('pending')
+    expect(failed.data.event.attempts).toBe(1)
+    expect(failed.data.event.lastError).toContain('mock Telegram failure')
+    expect(failed.data.attempts).toHaveLength(1)
+    expect(failed.data.attempts[0]).toMatchObject({ status: 'failed', httpStatus: 500 })
+
+    telegramFail = false
+    const retried = await api(`/api/outbox/${event.id}/retry`, { method: 'POST', json: {} })
+    expect(retried.status).toBe(200)
+    const processedAgain = await api('/api/outbox/process', {
+      method: 'POST',
+      json: { limit: 100 },
+      headers: { 'x-outbox-worker-secret': 'test-outbox-secret' },
+    })
+    expect(processedAgain.status).toBe(200)
+
+    const sent = await api(`/api/outbox/${event.id}`)
+    expect(sent.data.event.status).toBe('sent')
+    expect(sent.data.event.attempts).toBe(2)
+    expect(sent.data.attempts.map((attempt: Json) => attempt.status)).toEqual(['failed', 'sent'])
+  })
+
+  it('dead-letters after the configured attempts and replays in a new epoch', async () => {
+    telegramFail = true
+    const created = await api('/api/receipts', {
+      json: { amountMinor: 789_000, currency: 'VND', method: 'cash' },
+    })
+    expect(created.status).toBe(200)
+    const receiptId = created.data.receipt.id as string
+    const list = await api(`/api/outbox?aggregateId=${receiptId}`)
+    const event = list.data.events[0] as Json
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const processed = await api('/api/outbox/process', {
+        method: 'POST',
+        json: { limit: 100 },
+        headers: { 'x-outbox-worker-secret': 'test-outbox-secret' },
+      })
+      expect(processed.status).toBe(200)
+    }
+
+    const dead = await api(`/api/outbox/${event.id}`)
+    expect(dead.data.event.status).toBe('dead_letter')
+    expect(dead.data.event.attempts).toBe(2)
+    expect(dead.data.attempts).toHaveLength(2)
+    expect(dead.data.attempts.every((attempt: Json) => attempt.status === 'failed')).toBe(true)
+
+    const retry = await api(`/api/outbox/${event.id}/retry`, { method: 'POST', json: {} })
+    expect(retry.status).toBe(409)
+
+    const replay = await api(`/api/outbox/${event.id}/replay`, { method: 'POST', json: {} })
+    expect(replay.status).toBe(200)
+    expect(replay.data.event).toMatchObject({ status: 'pending', attempts: 0, replayEpoch: 1 })
+
+    telegramFail = false
+    const processed = await api('/api/outbox/process', {
+      method: 'POST',
+      json: { limit: 100 },
+      headers: { 'x-outbox-worker-secret': 'test-outbox-secret' },
+    })
+    expect(processed.status).toBe(200)
+
+    const sent = await api(`/api/outbox/${event.id}`)
+    expect(sent.data.event.status).toBe('sent')
+    expect(sent.data.event.replayEpoch).toBe(1)
+    expect(sent.data.attempts.map((attempt: Json) => `${attempt.epoch}:${attempt.attempt}:${attempt.status}`))
+      .toEqual(['0:1:failed', '0:2:failed', '1:1:sent'])
+  })
+
+  it('protects the outbox journal and the worker endpoint', async () => {
+    const anonymous = await fetch(url('/api/outbox'))
+    expect(anonymous.status).toBe(401)
+
+    const badWorker = await fetch(url('/api/outbox/process'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-outbox-worker-secret': 'wrong-secret' },
+      body: JSON.stringify({ limit: 1 }),
+    })
+    expect([401, 403]).toContain(badWorker.status)
   })
 })

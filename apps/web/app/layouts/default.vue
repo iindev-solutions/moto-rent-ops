@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { clearBikeCache } from '~/composables/useBikeCache'
 import { clearOfflineAccess } from '~/composables/useOfflineAccess'
+import type { MessageKey } from '~/composables/useLocale'
 
 const route = useRoute()
 const { t } = useLocale()
 const { user, clear } = useUserSession()
 const sidebarOpen = ref(false)
 const userMenuOpen = ref(false)
+const canViewOutbox = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
 
-const navGroups = [
+type NavItem = {
+  labelKey: MessageKey
+  icon: string
+  to: string
+  enabled: boolean
+  ownerOnly?: boolean
+}
+
+const navGroups: Array<{ labelKey: MessageKey, items: NavItem[] }> = [
   {
     labelKey: 'nav.workspace',
     items: [
@@ -28,9 +38,10 @@ const navGroups = [
       { labelKey: 'nav.documents', icon: 'i-lucide-folder-lock', to: '/documents', enabled: true },
       { labelKey: 'nav.maintenance', icon: 'i-lucide-wrench', to: '/maintenance', enabled: true },
       { labelKey: 'nav.incidents', icon: 'i-lucide-alert-triangle', to: '/incidents', enabled: true },
+      { labelKey: 'nav.notifications', icon: 'i-lucide-bell', to: '/notifications', enabled: true, ownerOnly: true },
     ],
   },
-] as const
+]
 
 const pageTitle = computed(() => {
   if (route.path.startsWith('/b/')) return t('bike.motorcycle')
@@ -46,6 +57,7 @@ const pageTitle = computed(() => {
   if (route.path.startsWith('/documents')) return t('documents.title')
   if (route.path.startsWith('/maintenance')) return t('maintenance.title')
   if (route.path.startsWith('/incidents')) return t('incidents.title')
+  if (route.path.startsWith('/notifications')) return t('notifications.title')
   return t('nav.today')
 })
 
@@ -80,7 +92,7 @@ async function signOut() {
           <p class="nav-group-label">{{ t(group.labelKey) }}</p>
           <template v-for="item in group.items" :key="item.labelKey">
             <NuxtLink
-              v-if="item.enabled"
+              v-if="item.enabled && (!item.ownerOnly || canViewOutbox)"
               :to="item.to"
               class="nav-link"
               :class="{ 'is-active': route.path === item.to || route.path.startsWith(`${item.to}/`) }"
@@ -89,7 +101,7 @@ async function signOut() {
               <UIcon :name="item.icon" class="size-4" />
               <span>{{ t(item.labelKey) }}</span>
             </NuxtLink>
-            <span v-else class="nav-link is-disabled" :aria-disabled="true">
+            <span v-else-if="!item.enabled" class="nav-link is-disabled" :aria-disabled="true">
               <UIcon :name="item.icon" class="size-4" />
               <span>{{ t(item.labelKey) }}</span>
               <span class="nav-link-badge">{{ t('nav.soon') }}</span>

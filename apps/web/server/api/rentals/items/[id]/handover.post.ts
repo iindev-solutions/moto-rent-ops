@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
-import { getDb, rentalItems, rentalAgreements, motorcycles, handovers, obligations, documentCustodies, auditEvents } from '@book-moto/db'
+import { getDb, rentalItems, rentalAgreements, motorcycles, handovers, obligations, documentCustodies, auditEvents, clients } from '@book-moto/db'
 import { hasValidHeldDocument } from '../../../../../server/utils/documents'
 import { advanceAgreementVersion } from '../../../../../server/utils/agreement-versions'
+import { enqueueOutbox } from '../../../../../server/utils/outbox'
 
 const bodySchema = z.object({
   odometer: z.number().int().min(0).optional(),
@@ -77,6 +78,25 @@ export default defineEventHandler(async (event) => {
         entityId: item.id,
         location: bike.location,
         metadata: { agreementId: agreement.id, motorcycleId: item.motorcycleId, odometer: parsed.data.odometer ?? null },
+      })
+
+      const [client] = await tx.select({ displayName: clients.displayName })
+        .from(clients)
+        .where(eq(clients.id, agreement.clientId))
+        .limit(1)
+      await enqueueOutbox(tx, {
+        eventType: 'rental.handover_completed',
+        aggregateType: 'rental_item',
+        aggregateId: item.id,
+        dedupeKey: `rental.handover_completed:${handover.id}`,
+        payload: {
+          rentalItemId: item.id,
+          agreementId: agreement.id,
+          assetCode: bike.assetCode,
+          model: bike.model,
+          clientName: client?.displayName ?? null,
+          endDate: item.endDate.toISOString(),
+        },
       })
     })
 

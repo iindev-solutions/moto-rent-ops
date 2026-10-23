@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { and, eq, notInArray } from 'drizzle-orm'
-import { getDb, rentalItems, rentalAgreements, motorcycles, returnInspections, obligations, auditEvents } from '@book-moto/db'
+import { getDb, rentalItems, rentalAgreements, motorcycles, returnInspections, obligations, auditEvents, clients } from '@book-moto/db'
 import { advanceAgreementVersion } from '../../../../../server/utils/agreement-versions'
+import { enqueueOutbox } from '../../../../../server/utils/outbox'
 
 const bodySchema = z.object({
   odometer: z.number().int().min(0).optional(),
@@ -86,6 +87,26 @@ export default defineEventHandler(async (event) => {
         entityId: item.id,
         location: bike.location,
         metadata: { agreementId: agreement.id, motorcycleId: item.motorcycleId, damageAmountMinor: parsed.data.damageAmountMinor, inspectionId: inspection?.id ?? null },
+      })
+
+      const [client] = await tx.select({ displayName: clients.displayName })
+        .from(clients)
+        .where(eq(clients.id, agreement.clientId))
+        .limit(1)
+      await enqueueOutbox(tx, {
+        eventType: 'rental.return_completed',
+        aggregateType: 'rental_item',
+        aggregateId: item.id,
+        dedupeKey: `rental.return_completed:${inspection?.id ?? item.id}`,
+        payload: {
+          rentalItemId: item.id,
+          agreementId: agreement.id,
+          assetCode: bike.assetCode,
+          model: bike.model,
+          clientName: client?.displayName ?? null,
+          amountMinor: parsed.data.damageAmountMinor,
+          currency: item.currency,
+        },
       })
 
       return inspection?.id ?? null

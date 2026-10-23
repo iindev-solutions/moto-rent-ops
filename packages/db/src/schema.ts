@@ -378,3 +378,49 @@ export const maintenanceOrders = pgTable('maintenance_orders', {
   check('maintenance_orders_cost_chk', sql`${table.costMinor} >= 0`),
   check('maintenance_orders_currency_chk', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ])
+
+export const outboxEvents = pgTable('outbox_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  eventType: varchar('event_type', { length: 80 }).notNull(),
+  aggregateType: varchar('aggregate_type', { length: 60 }).notNull(),
+  aggregateId: uuid('aggregate_id'),
+  dedupeKey: varchar('dedupe_key', { length: 200 }).notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+  status: varchar('status', { length: 16 }).notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  replayEpoch: integer('replay_epoch').notNull().default(0),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+  lockedAt: timestamp('locked_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('outbox_events_dedupe_key_uidx').on(table.dedupeKey),
+  index('outbox_events_status_next_idx').on(table.status, table.nextAttemptAt),
+  index('outbox_events_aggregate_idx').on(table.aggregateType, table.aggregateId),
+  index('outbox_events_created_idx').on(table.createdAt),
+  check('outbox_events_status_chk', sql`${table.status} IN ('pending', 'processing', 'sent', 'dead_letter')`),
+  check('outbox_events_attempts_chk', sql`${table.attempts} >= 0`),
+  check('outbox_events_replay_epoch_chk', sql`${table.replayEpoch} >= 0`),
+])
+
+// Immutable delivery journal. One row per real send attempt; replay starts a new epoch.
+export const outboxAttempts = pgTable('outbox_attempts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  eventId: uuid('event_id').notNull().references(() => outboxEvents.id),
+  epoch: integer('epoch').notNull().default(0),
+  attempt: integer('attempt').notNull(),
+  status: varchar('status', { length: 16 }).notNull(),
+  httpStatus: integer('http_status'),
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('outbox_attempts_event_epoch_attempt_uidx').on(table.eventId, table.epoch, table.attempt),
+  index('outbox_attempts_event_idx').on(table.eventId, table.createdAt),
+  check('outbox_attempts_status_chk', sql`${table.status} IN ('sent', 'failed')`),
+  check('outbox_attempts_attempt_chk', sql`${table.attempt} > 0`),
+  check('outbox_attempts_epoch_chk', sql`${table.epoch} >= 0`),
+])

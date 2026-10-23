@@ -7,7 +7,8 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "outbox:worker": "tsx scripts/outbox-worker.ts"
   },
   "dependencies": {
     "@book-moto/contracts": "*",
@@ -30,6 +31,7 @@
     "@nuxt/test-utils": "^4.3.4",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^26.6.2",
+    "tsx": "4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5",
     "vue-tsc": "^3.3.11"

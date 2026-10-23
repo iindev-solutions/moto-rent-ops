@@ -14,7 +14,8 @@
     "test": "npm --workspace @book-moto/web run test",
     "db:generate": "npm --workspace @book-moto/db run generate",
     "db:migrate": "npm --workspace @book-moto/db run migrate",
-    "db:seed": "npm --workspace @book-moto/db run seed"
+    "db:seed": "npm --workspace @book-moto/db run seed",
+    "outbox:worker": "npm --workspace @book-moto/web run outbox:worker"
   },
   "engines": {
     "node": ">=22.0.0"
