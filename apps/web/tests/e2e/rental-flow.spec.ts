@@ -1141,6 +1141,46 @@ describe('legacy import', () => {
     expect(await importedBike()).toBeUndefined()
   })
 
+  it('refuses to add a new item to an existing agreement', async () => {
+    const base = {
+      clients: [{ sourceId: 'partial-client-1', displayName: 'Partial Replay Rider', preferredChannel: 'phone', contacts: [] }],
+      agreements: [{ sourceId: 'partial-agreement-1', clientSourceId: 'partial-client-1', status: 'active' }],
+    }
+    const first = await api('/api/imports/legacy', {
+      json: { snapshot: base, apply: true, label: 'e2e partial base' },
+    })
+    expect(first.status).toBe(200)
+
+    const second = await api('/api/imports/legacy', {
+      json: {
+        snapshot: {
+          ...base,
+          motorcycles: [{
+            sourceId: 'partial-bike-1',
+            assetCode: 'PARTIAL-BIKE-1',
+            model: 'Honda Blade',
+            status: 'available',
+          }],
+          rentalItems: [{
+            sourceId: 'partial-item-1',
+            agreementSourceId: 'partial-agreement-1',
+            motorcycleSourceId: 'partial-bike-1',
+            startDate: '2026-10-01T00:00:00+07:00',
+            endDate: '2026-10-10T00:00:00+07:00',
+            dailyRateMinor: 150_000,
+            status: 'planned',
+          }],
+        },
+        apply: true,
+        label: 'e2e partial conflict',
+      },
+    })
+    expect(second.status).toBe(422)
+    expect(second.data.data.report.issues.some((issue: Json) => issue.errors.some((error: string) => error.includes('cannot add a new rental item')))).toBe(true)
+    const bikes = await api('/api/bikes?search=PARTIAL-BIKE-1')
+    expect((bikes.data.bikes as Json[]).some(row => row.assetCode === 'PARTIAL-BIKE-1')).toBe(false)
+  })
+
   it('applies a valid snapshot with provenance and generated QR credentials', async () => {
     const applied = await api('/api/imports/legacy', {
       json: { snapshot, apply: true, label: 'e2e apply' },

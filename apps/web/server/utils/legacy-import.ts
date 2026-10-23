@@ -961,6 +961,18 @@ export async function runLegacyImport(
     }
   }
 
+  // Adding a new item to an agreement that already exists would change the
+  // agreement without bumping its version or appending a new snapshot. Treat
+  // that partial replay as a conflict instead of mutating the existing record.
+  for (const row of prepared) {
+    if (row.table !== 'rentalItems' || row.status !== 'valid' || !row.data) continue
+    const data = row.data as ParsedRentalItem
+    const agreementRow = reference('agreements', data.agreementSourceId)
+    if (agreementRow?.status === 'duplicate') {
+      addError(row, `agreementSourceId: agreement "${data.agreementSourceId}" already exists; cannot add a new rental item`)
+    }
+  }
+
   for (const row of prepared) {
     if (row.errors.length && row.status !== 'duplicate') row.status = 'invalid'
   }
