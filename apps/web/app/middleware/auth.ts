@@ -16,13 +16,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
       && !navigator.onLine
       && to.path.startsWith('/b/')
       && hasValidOfflineAccess()
-    if (!cachedCardRoute) {
-      return navigateTo({
-        path: '/login',
-        query: { returnTo: to.fullPath },
-      })
+    if (cachedCardRoute) {
+      return
     }
-    return
+    // Bike QR scans get a public customer view instead of a login wall; staff
+    // sign in from there. Everything else still requires authentication.
+    if (to.path.startsWith('/b/')) {
+      return
+    }
+    return navigateTo({
+      path: '/login',
+      query: { returnTo: to.fullPath },
+    })
   }
 
   if (import.meta.client && navigator.onLine) {

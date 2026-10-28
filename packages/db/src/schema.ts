@@ -21,6 +21,7 @@ export const motorcycles = pgTable('motorcycles', {
   assetCode: varchar('asset_code', { length: 32 }).notNull(),
   model: varchar('model', { length: 120 }).notNull(),
   plate: varchar('plate', { length: 32 }),
+  photoUrl: varchar('photo_url', { length: 500 }),
   status: varchar('status', { length: 32 }).notNull().default('available'),
   location: varchar('location', { length: 120 }),
   nextAction: varchar('next_action', { length: 240 }),

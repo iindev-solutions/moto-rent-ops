@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: 'Stored locator token is unreadable' })
     }
 
-    const origin = getRequestURL(event).origin
+    const origin = useRuntimeConfig().public.secureAppUrl || getRequestURL(event).origin
     const deepLink = buildBikeDeepLink(origin, token)
     const svg = await QRCode.toString(deepLink, {
       type: 'svg',

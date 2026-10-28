@@ -12,6 +12,7 @@ export type CachedBikeCard = {
   assetCode: string
   model: string
   plate: string | null
+  photoUrl?: string | null
   status: string
   location: string | null
   nextAction: string | null
@@ -84,6 +85,7 @@ function toRecord(bike: BikeSummary, cachedAt: number): CachedBikeCard | null {
     assetCode: bike.assetCode,
     model: bike.model,
     plate: bike.plate,
+    photoUrl: bike.photoUrl ?? null,
     status: bike.status,
     location: bike.location,
     nextAction: bike.nextAction,

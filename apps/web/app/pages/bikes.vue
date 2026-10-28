@@ -13,6 +13,7 @@ const pageSize = 50
 const limit = ref(pageSize)
 const manualCode = ref('')
 const scannerOpen = ref(false)
+const { resolving: scanResolving, openBike } = useScanNavigation()
 const reissuing = ref(false)
 const reissueId = ref('')
 const lookupError = ref('')
@@ -76,7 +77,7 @@ function openManualLookup() {
   const token = normalizeLocatorToken(manualCode.value)
   if (token) {
     lookupError.value = ''
-    router.push(`/b/${token}`)
+    void openBike(token)
   } else {
     lookupError.value = t('home.invalidCode')
   }
@@ -100,8 +101,7 @@ async function reissueQr(bikeId: string) {
 function onScan(value: string) {
   const token = normalizeLocatorToken(value)
   if (token) {
-    scannerOpen.value = false
-    router.push(`/b/${token}`)
+    void openBike(token)
   } else {
     scannerOpen.value = false
     lookupError.value = t('home.invalidQr')
@@ -140,7 +140,7 @@ function onScan(value: string) {
             <thead><tr><th>{{ t('fleet.asset') }}</th><th>{{ t('bike.status') }}</th><th>{{ t('bike.location') }}</th><th>{{ t('bike.nextAction') }}</th><th><span class="sr-only">{{ t('common.actions') }}</span></th></tr></thead>
             <tbody>
               <tr v-for="bike in bikes" :key="bike.id">
-                <td><div class="font-semibold"><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else>{{ bike.assetCode }} · {{ bike.model }}</span></div><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></td>
+                <td><div class="flex items-center gap-3"><BikePhoto :photo-url="bike.photoUrl" :asset-code="bike.assetCode" :model="bike.model" /><div><div class="font-semibold"><NuxtLink v-if="bike.qrToken" :to="`/b/${bike.qrToken}`" class="hover:text-[var(--accent)]">{{ bike.assetCode }} · {{ bike.model }}</NuxtLink><span v-else>{{ bike.assetCode }} · {{ bike.model }}</span></div><div class="mt-1 font-mono text-[10px] text-[var(--text-muted)]">{{ bike.plate || '—' }}</div></div></div></td>
                 <td><span class="status-pill" :class="statusTone(bike.status)">{{ statusLabel(bike.status) }}</span></td>
                 <td>{{ bike.location || '—' }}</td>
                 <td>{{ bike.nextAction || '—' }}</td>
@@ -164,5 +164,14 @@ function onScan(value: string) {
     </section>
 
     <BikeScanner v-if="scannerOpen" @close="scannerOpen = false" @found="onScan" />
+
+    <Transition name="fade">
+      <div v-if="scanResolving" class="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--ink)]/70 p-6" role="status" aria-live="polite">
+        <div class="surface flex items-center gap-3 bg-[var(--surface)] px-6 py-5">
+          <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-[var(--accent)]" />
+          <span class="text-sm font-semibold">{{ t('scanner.resolving') }}</span>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
       assetCode: locator.assetCode,
       model: locator.model,
       plate: locator.plate,
+      photoUrl: locator.photoUrl,
       status: locator.status,
       location: locator.location,
       nextAction: locator.nextAction,

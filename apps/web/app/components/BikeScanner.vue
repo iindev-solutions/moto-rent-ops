@@ -23,11 +23,31 @@ const { t } = useLocale()
 const active = ref(false)
 const busy = ref(false)
 const messageKey = ref<MessageKey>('scanner.idle')
+const debugDetail = ref('')
+// Camera APIs only exist in a secure context: over plain HTTP on a LAN IP the
+// browser hides `navigator.mediaDevices` entirely.
+const insecureContext = import.meta.client
+  && (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia)
+const secureAppUrl = useRuntimeConfig().public.secureAppUrl
 let stream: MediaStream | undefined
 let animationFrame = 0
 
+/**
+ * Surfaces the browser's own reason (NotAllowedError, NotFoundError, …) next to
+ * the generic "camera unavailable" message.
+ */
+function describeError(error: unknown): string {
+  const err = error instanceof Error ? error : new Error(String(error))
+  return `${err.name}: ${err.message}`.slice(0, 180)
+}
+
 async function startCamera() {
   if (!import.meta.client || active.value) {
+    return
+  }
+
+  if (insecureContext) {
+    messageKey.value = 'scanner.insecure'
     return
   }
 
@@ -35,10 +55,17 @@ async function startCamera() {
   messageKey.value = 'scanner.requesting'
 
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: 'environment' } },
-    })
+    // Camera start and decoder init fail for different reasons (permissions,
+    // NotAllowedError vs wasm module load over the tunnel). Keep separate.
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      })
+    } catch (error) {
+      debugDetail.value = `camera: ${describeError(error)}`
+      throw error
+    }
 
     if (!video.value) {
       throw new Error('Video element is unavailable')
@@ -58,8 +85,13 @@ async function startCamera() {
     }
     nativeFailures = 0
     if (!nativeDetector && !wasmDecoder) {
-      const decoderModule = await import('zxing-wasm/reader')
-      wasmDecoder = decoderModule.readBarcodes
+      try {
+        const decoderModule = await import('zxing-wasm/reader')
+        wasmDecoder = decoderModule.readBarcodes
+      } catch (error) {
+        debugDetail.value = `decoder: ${describeError(error)}`
+        throw error
+      }
     }
 
     active.value = true
@@ -193,14 +225,20 @@ onBeforeUnmount(stopCamera)
       <div class="relative mt-6 aspect-[4/3] overflow-hidden border border-[var(--line-strong)] bg-[var(--ink)]">
         <video ref="video" class="size-full object-cover" autoplay muted playsinline />
         <div v-if="!active" class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center text-[var(--surface)]">
-          <UIcon name="i-lucide-scan-line" class="size-12 text-[var(--acid)]" />
-          <p class="max-w-sm text-sm leading-6 text-white/65">{{ t('scanner.privacy') }}</p>
-          <UButton class="button-primary" :loading="busy" @click="startCamera">{{ t('scanner.allow') }}</UButton>
+          <UIcon :name="insecureContext ? 'i-lucide-shield-alert' : 'i-lucide-scan-line'" class="size-12 text-[var(--acid)]" />
+          <template v-if="insecureContext">
+            <p class="max-w-sm text-sm leading-6 text-white/65">{{ t('scanner.insecureBody') }}</p>
+            <a v-if="secureAppUrl" class="button-primary" :href="`${secureAppUrl}/dashboard`">{{ t('scanner.openSecure') }}</a>
+          </template>
+          <template v-else>
+            <p class="max-w-sm text-sm leading-6 text-white/65">{{ t('scanner.privacy') }}</p>
+            <UButton class="button-primary" :loading="busy" @click="startCamera">{{ t('scanner.allow') }}</UButton>
+          </template>
         </div>
         <div v-else class="pointer-events-none absolute inset-[16%] border-2 border-[var(--acid)] shadow-[0_0_0_999px_rgba(17,17,15,0.28)]" />
       </div>
 
-      <p class="mt-4 min-h-6 font-mono text-xs text-[var(--muted)]" aria-live="polite">{{ t(messageKey) }}</p>
+      <p class="mt-4 min-h-6 font-mono text-xs text-[var(--muted)]" aria-live="polite">{{ t(messageKey) }} <span v-if="debugDetail" class="text-[var(--signal)]">{{ debugDetail }}</span></p>
       <div class="mt-6 flex flex-wrap gap-3">
         <UButton class="button-primary" icon="i-lucide-scan-line" :loading="busy" @click="active ? restartCamera() : startCamera()">{{ active ? t('scanner.restart') : t('scanner.start') }}</UButton>
         <UButton class="button-secondary" @click="close">{{ t('scanner.manual') }}</UButton>

@@ -7,6 +7,7 @@ const { t, tPriority, tDepositType, tObligationType, tMaintenanceType } = useLoc
 const search = ref('')
 const manualCode = ref('')
 const scannerOpen = ref(false)
+const { resolving: scanResolving, openBike } = useScanNavigation()
 const scannerError = ref('')
 const { data: dashboard, error: dashboardError, refresh: refreshDashboard } = await useFetch<DashboardData>('/api/dashboard')
 
@@ -78,7 +79,7 @@ function openManualLookup() {
   }
 
   scannerError.value = ''
-  router.push(`/b/${token}`)
+  void openBike(token)
 }
 
 function onScan(value: string) {
@@ -89,8 +90,7 @@ function onScan(value: string) {
     return
   }
 
-  scannerOpen.value = false
-  router.push(`/b/${token}`)
+  void openBike(token)
 }
 
 const exporting = ref(false)
@@ -294,5 +294,14 @@ async function exportCsv() {
     </section>
 
     <BikeScanner v-if="scannerOpen" @close="scannerOpen = false" @found="onScan" />
+
+    <Transition name="fade">
+      <div v-if="scanResolving" class="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--ink)]/70 p-6" role="status" aria-live="polite">
+        <div class="surface flex items-center gap-3 bg-[var(--surface)] px-6 py-5">
+          <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin text-[var(--accent)]" />
+          <span class="text-sm font-semibold">{{ t('scanner.resolving') }}</span>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

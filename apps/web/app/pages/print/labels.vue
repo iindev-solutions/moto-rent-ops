@@ -18,6 +18,15 @@ const { data, error, status, refresh } = await useFetch<BikesResponse>(() => {
 })
 
 const bikes = computed<PrintableBike[]>(() => (data.value?.bikes || []).filter((bike): bike is PrintableBike => Boolean(bike.qrToken && bike.manualCode)))
+
+// Printed labels encode the secure app URL when configured; show the base so
+// operators can verify where a sticker points before it goes on a bike.
+const config = useRuntimeConfig()
+const linkBase = computed(() => {
+  const configured = String(config.public.secureAppUrl || '')
+  if (configured) return configured.replace(/\/+$/, '')
+  return import.meta.client ? window.location.origin : String(config.public.appUrl || '')
+})
 const total = computed(() => data.value?.total ?? bikes.value.length)
 const skipped = computed(() => (data.value?.bikes || []).length - bikes.value.length)
 
@@ -75,6 +84,7 @@ function printLabels() {
             <div class="label-foot">
               <p class="label-code">{{ t('bike.manualCode') }}: {{ formatManualCode(bike.manualCode) }}</p>
               <p class="label-instruction">{{ t('bike.printInstruction') }}</p>
+              <p class="label-url">{{ linkBase }}/b/{{ bike.qrToken }}</p>
               <p class="label-date">{{ t('bike.printedAt') }}: {{ formatDateTime(printedAt) }}</p>
             </div>
           </article>

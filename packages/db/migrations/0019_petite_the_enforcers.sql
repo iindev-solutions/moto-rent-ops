@@ -1,0 +1,1 @@
+ALTER TABLE "motorcycles" ADD COLUMN "photo_url" varchar(500);

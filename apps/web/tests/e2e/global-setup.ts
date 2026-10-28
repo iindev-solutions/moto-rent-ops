@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,7 +14,14 @@ export default function setup() {
   const dataDir = process.env.PGLITE_DATA_DIR
   if (!dataDir) throw new Error('PGLITE_DATA_DIR is not set for tests')
 
-  rmSync(dirname(dataDir), { recursive: true, force: true })
+  // Never wipe a developer database: the test data dir must live in the OS temp
+  // directory. A missing guard once let a test run rewrite the demo dataset.
+  const dataRoot = resolve(dirname(dataDir))
+  if (!dataRoot.startsWith(resolve(tmpdir()))) {
+    throw new Error(`Refusing to wipe ${dataRoot}: test PGLITE_DATA_DIR must be inside ${tmpdir()}`)
+  }
+
+  rmSync(dataRoot, { recursive: true, force: true })
   execFileSync('npm', ['run', 'db:seed'], {
     cwd: repoRoot,
     stdio: 'inherit',

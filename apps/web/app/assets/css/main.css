@@ -292,3 +292,9 @@ a.lp-footer__text:hover { color: var(--text); text-decoration: underline; text-u
   .lp-page { padding-bottom: 78px; }
   .lp-sticky { display: flex; }
 }
+
+/* Route-loading overlay: fade in/out so a fast lookup never flashes. */
+.fade-enter-active,
+.fade-leave-active { transition: opacity 160ms ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }

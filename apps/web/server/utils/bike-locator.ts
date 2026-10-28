@@ -22,6 +22,7 @@ export async function resolveBikeLocator(rawLocator: string) {
       assetCode: motorcycles.assetCode,
       model: motorcycles.model,
       plate: motorcycles.plate,
+      photoUrl: motorcycles.photoUrl,
       status: motorcycles.status,
       location: motorcycles.location,
       nextAction: motorcycles.nextAction,

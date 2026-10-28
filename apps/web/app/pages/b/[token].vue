@@ -10,18 +10,40 @@ const router = useRouter()
 const { t, tStatus, tDepositType, tObligationType } = useLocale()
 const token = computed(() => normalizeLocatorToken(String(route.params.token || '')) || '')
 const tokenReady = Boolean(token.value)
-const { data: fetchedBike, error, status, refresh: refreshBike } = await useFetch<BikeSummary>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
+const { loggedIn } = useUserSession()
+const isStaff = computed(() => loggedIn.value)
+
+// Public (customer) view data: fetched without a session from the public API.
+const publicBike = ref<{ assetCode: string, model: string, plate: string | null, photoUrl?: string | null, status: string, location: string | null } | null>(null)
+const publicError = ref(false)
+
+watchEffect(async () => {
+  if (isStaff.value || !tokenReady || publicBike.value || publicError.value) return
+  try {
+    publicBike.value = await $fetch<{ assetCode: string, model: string, plate: string | null, status: string, location: string | null }>(`/api/public/bikes/${encodeURIComponent(token.value)}`)
+  } catch {
+    publicError.value = true
+  }
+})
+const { data: fetchedBike, error, status, refresh: refreshBike } = useFetch<BikeSummary | null>(() => `/api/bikes/${encodeURIComponent(token.value)}`, {
   retry: 0,
-  immediate: tokenReady,
+  immediate: tokenReady && isStaff.value,
 })
 
 const cachedBike = ref<CachedBikeCard | null>(null)
 const bike = computed(() => fetchedBike.value ?? cachedBike.value)
+
 const offline = computed(() => !fetchedBike.value && Boolean(cachedBike.value))
 const cachedAt = computed(() => cachedBike.value?.cachedAt ?? null)
 
 async function loadCachedBike() {
   if (!import.meta.client || !tokenReady || fetchedBike.value || cachedBike.value || !token.value) {
+    return
+  }
+  // Only fall back to the cached card when the network is unavailable or the
+  // live fetch failed; otherwise the banner would flash while data is in flight.
+  const offlineNow = !navigator.onLine
+  if (!offlineNow && !error.value) {
     return
   }
   cachedBike.value = await readCachedBike(token.value)
@@ -31,25 +53,48 @@ onMounted(() => {
   void loadCachedBike()
 })
 
+watch(error, (failure) => {
+  if (failure) {
+    void loadCachedBike()
+  }
+})
+
 watch(fetchedBike, (value) => {
   if (value) {
     void cacheBikeCards([value])
   }
 }, { immediate: true })
 
-const { data: context, error: contextError } = await useFetch<any>(() => `/api/bikes/${encodeURIComponent(token.value)}/context`, {
+const { data: context, error: contextError, status: contextStatus } = useFetch<any>(() => `/api/bikes/${encodeURIComponent(token.value)}/context`, {
   retry: 0,
-  immediate: tokenReady,
+  immediate: tokenReady && isStaff.value,
 })
 
-const { data: eventsData, error: eventsError } = await useFetch<{ events: Array<{ id: string; action: string; reason: string | null; createdAt: string; actorName: string | null; actorEmail: string | null }> }>(() => `/api/bikes/${encodeURIComponent(token.value)}/events`, {
+const { data: eventsData, error: eventsError, status: eventsStatus } = useFetch<{ events: Array<{ id: string; action: string; reason: string | null; createdAt: string; actorName: string | null; actorEmail: string | null }> }>(() => `/api/bikes/${encodeURIComponent(token.value)}/events`, {
   retry: 0,
-  immediate: tokenReady,
+  immediate: tokenReady && isStaff.value,
 })
 
-const { data: locationsData, error: locationsError, refresh: refreshLocations } = await useFetch<{ locations: LocationAssignment[] }>(() => `/api/bikes/${encodeURIComponent(token.value)}/locations`, {
+const { data: locationsData, error: locationsError, status: locationsStatus, refresh: refreshLocations } = useFetch<{ locations: LocationAssignment[] }>(() => `/api/bikes/${encodeURIComponent(token.value)}/locations`, {
   retry: 0,
-  immediate: tokenReady,
+  immediate: tokenReady && isStaff.value,
+})
+
+// Active rental pricing: days × daily rate, so the card shows what the client
+// owes without opening the agreement.
+const rentalDays = computed<number | null>(() => {
+  const rental = context.value?.activeRental
+  if (!rental) return null
+  const start = new Date(rental.startDate).getTime()
+  const end = new Date(rental.endDate).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null
+  return Math.max(1, Math.round((end - start) / 86_400_000))
+})
+
+const rentalTotalMinor = computed<number | null>(() => {
+  const rental = context.value?.activeRental
+  if (!rental || rentalDays.value === null) return null
+  return rental.dailyRateMinor * rentalDays.value
 })
 
 const statusKeys = {
@@ -125,7 +170,7 @@ async function revokeQr() {
       body: { reason: reason.value },
     })
     revokeOpen.value = false
-    await router.push('/')
+    await router.push('/bikes')
   } catch (error) {
     actionError.value = apiErrorMessage(error, t('common.error'))
   } finally {
@@ -177,20 +222,49 @@ function printLabel() {
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div class="flex items-center gap-5">
           <NuxtLink to="/" class="brand-mark">MOTO<em>//</em>OPS</NuxtLink>
-          <span class="hidden font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)] sm:inline">{{ t('bike.motorcycle') }} / {{ bike?.assetCode || '—' }}</span>
+          <span class="hidden font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--muted)] sm:inline">{{ t('bike.motorcycle') }} / {{ (bike ?? publicBike)?.assetCode || '—' }}</span>
         </div>
         <LocaleSwitcher />
       </div>
     </header>
 
     <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-      <button v-if="!offline" type="button" class="quiet-link inline-flex items-center gap-2 text-[var(--ink)] underline decoration-2 underline-offset-4 no-print" @click="goBack">← {{ t('bike.back') }}</button>
+      <button v-if="isStaff && !offline" type="button" class="quiet-link inline-flex items-center gap-2 text-[var(--ink)] underline decoration-2 underline-offset-4 no-print" @click="goBack">← {{ t('bike.back') }}</button>
 
-      <div v-if="status === 'pending'" class="surface mt-8 p-8 no-print">
+      <div v-if="status === 'pending' && isStaff" class="surface mt-8 p-8 no-print">
         <USkeleton class="h-6 w-32" />
         <USkeleton class="mt-6 h-16 w-3/4" />
         <USkeleton class="mt-4 h-5 w-1/2" />
       </div>
+      <section v-else-if="!isStaff && publicBike" class="mt-8">
+        <div class="surface overflow-hidden">
+          <BikePhoto v-if="publicBike.photoUrl" :photo-url="publicBike.photoUrl" :asset-code="publicBike.assetCode" :model="publicBike.model" size="hero" />
+          <div class="flex flex-wrap items-start justify-between gap-6 bg-[var(--ink)] p-6 text-[var(--surface)] sm:p-10">
+            <div>
+              <p class="eyebrow text-white/50">{{ t('bike.publicTitle') }}</p>
+              <p class="eyebrow text-white/50">{{ t('bike.motorcycle') }} / {{ publicBike.assetCode }}</p>
+              <h1 class="mt-4 text-4xl font-extrabold tracking-[-0.065em] sm:text-6xl">{{ publicBike.model }}</h1>
+              <p class="mt-3 font-mono text-sm text-white/60">{{ publicBike.plate || t('bike.noPlate') }}</p>
+            </div>
+            <span class="status-pill text-[var(--acid)]">{{ tStatus(publicBike.status) }}</span>
+          </div>
+          <div class="grid gap-px bg-[var(--line)] sm:grid-cols-2">
+            <div class="bg-[var(--surface)] p-6"><p class="data-label">{{ t('bike.location') }}</p><p class="mt-3 text-xl font-extrabold">{{ publicBike.location || '—' }}</p></div>
+            <div class="bg-[var(--surface)] p-6"><p class="data-label">{{ t('bike.status') }}</p><p class="mt-3 text-xl font-extrabold">{{ tStatus(publicBike.status) }}</p></div>
+          </div>
+        </div>
+        <div class="no-print mt-6 flex flex-wrap gap-3">
+          <UButton class="button-primary" icon="i-lucide-phone" href="tel:+84911710610" external>{{ t('bike.publicCall') }}</UButton>
+          <UButton class="button-secondary" icon="i-lucide-message-circle" href="https://wa.me/84911710610" external target="_blank" rel="noopener noreferrer">{{ t('bike.publicWhatsApp') }}</UButton>
+          <UButton class="button-secondary" variant="ghost" :to="`/login?returnTo=${encodeURIComponent(route.fullPath)}`">{{ t('bike.publicStaffSignIn') }}</UButton>
+        </div>
+      </section>
+
+      <section v-else-if="!isStaff && publicError" class="surface mt-8 p-8 sm:p-10 no-print">
+        <p class="eyebrow text-[var(--signal)]">{{ t('bike.lookupFailed') }}</p>
+        <h1 class="mt-4 text-4xl font-extrabold tracking-[-0.055em]">{{ t('bike.notFound') }}</h1>
+        <p class="mt-4 max-w-xl leading-7 text-[var(--muted)]">{{ t('bike.notFoundBody') }}</p>
+      </section>
 
       <section v-else-if="bike" class="mt-8">
         <div v-if="offline" class="no-print mb-6 border-l-4 border-[var(--accent)] bg-[var(--accent-soft)] p-4 sm:p-5" role="status">
@@ -199,6 +273,7 @@ function printLabel() {
           <p class="mt-2 font-mono text-xs text-[var(--muted)]">{{ t('bike.cachedAt') }}: {{ cachedAt ? formatDateTime(new Date(cachedAt)) : '—' }}</p>
         </div>
         <div class="surface overflow-hidden">
+          <BikePhoto v-if="bike.photoUrl" :photo-url="bike.photoUrl" :asset-code="bike.assetCode" :model="bike.model" size="hero" />
           <div class="flex flex-wrap items-start justify-between gap-6 bg-[var(--ink)] p-6 text-[var(--surface)] sm:p-10">
             <div>
               <p class="eyebrow text-white/50">{{ t('bike.motorcycle') }} / {{ bike.assetCode }}</p>
@@ -260,45 +335,18 @@ function printLabel() {
 
         <template v-if="!offline">
           <section class="no-print surface mt-6 p-6">
-            <p class="panel-title">{{ t('bike.history') }}</p>
-            <div v-if="eventsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
-            <div v-else-if="eventsData?.events?.length" class="mt-4 space-y-3">
-              <div v-for="event in eventsData.events" :key="event.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <span class="font-mono text-xs font-bold uppercase tracking-[0.12em]">{{ event.action }}</span>
-                  <span class="text-xs text-[var(--muted)]">{{ formatDateTime(event.createdAt) }}</span>
-                </div>
-                <p v-if="event.reason" class="mt-1 text-sm">{{ event.reason }}</p>
-                <p v-if="event.actorName || event.actorEmail" class="mt-1 text-xs text-[var(--muted)]">{{ event.actorName || event.actorEmail }}</p>
-              </div>
-            </div>
-            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noHistory') }}</p>
-          </section>
-
-          <section class="no-print surface mt-6 p-6">
-            <p class="panel-title">{{ t('bike.locationHistory') }}</p>
-            <div v-if="locationsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
-            <div v-else-if="locationsData?.locations?.length" class="mt-4 space-y-3">
-              <div v-for="entry in locationsData.locations" :key="entry.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <span class="font-semibold">{{ entry.location }}</span>
-                  <span class="text-xs text-[var(--muted)]">{{ formatDateTime(entry.startedAt) }} → {{ entry.endedAt ? formatDateTime(entry.endedAt) : t('bike.current') }}</span>
-                </div>
-                <p v-if="entry.note" class="mt-1 text-sm">{{ entry.note }}</p>
-                <p v-if="entry.actorName" class="mt-1 text-xs text-[var(--muted)]">{{ entry.actorName }}</p>
-              </div>
-            </div>
-            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noLocationHistory') }}</p>
-          </section>
-
-          <section class="no-print surface mt-6 p-6">
             <p class="panel-title">{{ t('bike.rentalInfo') }}</p>
             <div v-if="contextError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+            <div v-else-if="contextStatus === 'pending'" class="mt-4 grid gap-3 sm:grid-cols-2" aria-busy="true">
+              <USkeleton class="h-4 w-2/3" />
+              <USkeleton class="h-4 w-1/2" />
+            </div>
             <div v-else-if="context?.activeRental" class="mt-4 grid gap-3 sm:grid-cols-2">
               <div><p class="data-label">{{ t('people.client') }}</p><p class="mt-1 font-semibold">{{ context.activeRental.client?.displayName || '—' }}</p></div>
               <div><p class="data-label">{{ t('bike.status') }}</p><p class="mt-1 font-semibold">{{ tStatus(context.activeRental.status) }}</p></div>
-              <div><p class="data-label">{{ t('people.items') }}</p><p class="mt-1 font-semibold">{{ formatDateTime(context.activeRental.startDate) }} → {{ formatDateTime(context.activeRental.endDate) }}</p></div>
-              <div><p class="data-label">{{ t('people.dailyRate') }}</p><p class="mt-1 font-semibold">{{ formatMoney(context.activeRental.dailyRateMinor, context.activeRental.currency) }}</p></div>
+              <div><p class="data-label">{{ t('bike.rentalPeriod') }}</p><p class="mt-1 font-semibold">{{ formatDateTime(context.activeRental.startDate) }} → {{ formatDateTime(context.activeRental.endDate) }}<span v-if="rentalDays" class="ml-1 text-[var(--muted)]"> · {{ rentalDays }} {{ t('bike.days') }}</span></p></div>
+              <div><p class="data-label">{{ t('bike.dailyRate') }}</p><p class="mt-1 font-semibold">{{ formatMoney(context.activeRental.dailyRateMinor, context.activeRental.currency) }}</p></div>
+              <div v-if="rentalTotalMinor !== null"><p class="data-label">{{ t('bike.rentalTotal') }}</p><p class="mt-1 font-semibold">{{ formatMoney(rentalTotalMinor, context.activeRental.currency) }}</p></div>
             </div>
             <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noActiveRental') }}</p>
 
@@ -318,6 +366,47 @@ function printLabel() {
               </div>
             </div>
           </section>
+
+          <details class="no-print surface mt-6 p-6">
+            <summary class="panel-title cursor-pointer">{{ t('bike.history') }}</summary>
+            <div v-if="eventsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+            <div v-else-if="eventsStatus === 'pending'" class="mt-4 space-y-3" aria-busy="true">
+              <USkeleton class="h-4 w-2/3" />
+              <USkeleton class="h-4 w-1/2" />
+              <USkeleton class="h-4 w-3/5" />
+            </div>
+            <div v-else-if="eventsData?.events?.length" class="mt-4 space-y-3">
+              <div v-for="event in eventsData.events" :key="event.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="font-mono text-xs font-bold uppercase tracking-[0.12em]">{{ event.action }}</span>
+                  <span class="text-xs text-[var(--muted)]">{{ formatDateTime(event.createdAt) }}</span>
+                </div>
+                <p v-if="event.reason" class="mt-1 text-sm">{{ event.reason }}</p>
+                <p v-if="event.actorName || event.actorEmail" class="mt-1 text-xs text-[var(--muted)]">{{ event.actorName || event.actorEmail }}</p>
+              </div>
+            </div>
+            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noHistory') }}</p>
+          </details>
+
+          <details class="no-print surface mt-6 p-6">
+            <summary class="panel-title cursor-pointer">{{ t('bike.locationHistory') }}</summary>
+            <div v-if="locationsError" class="mt-4 text-sm text-[var(--danger)]" role="alert">{{ t('common.loadError') }}</div>
+            <div v-else-if="locationsStatus === 'pending'" class="mt-4 space-y-3" aria-busy="true">
+              <USkeleton class="h-4 w-2/3" />
+              <USkeleton class="h-4 w-1/2" />
+            </div>
+            <div v-else-if="locationsData?.locations?.length" class="mt-4 space-y-3">
+              <div v-for="entry in locationsData.locations" :key="entry.id" class="border-b border-[var(--line)] pb-3 last:border-b-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="font-semibold">{{ entry.location }}</span>
+                  <span class="text-xs text-[var(--muted)]">{{ formatDateTime(entry.startedAt) }} → {{ entry.endedAt ? formatDateTime(entry.endedAt) : t('bike.current') }}</span>
+                </div>
+                <p v-if="entry.note" class="mt-1 text-sm">{{ entry.note }}</p>
+                <p v-if="entry.actorName" class="mt-1 text-xs text-[var(--muted)]">{{ entry.actorName }}</p>
+              </div>
+            </div>
+            <p v-else class="mt-4 text-sm text-[var(--muted)]">{{ t('bike.noLocationHistory') }}</p>
+          </details>
         </template>
 
         <section class="print-only print-label">

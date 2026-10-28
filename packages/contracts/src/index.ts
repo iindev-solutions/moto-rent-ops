@@ -3,6 +3,7 @@ export type BikeSummary = {
   assetCode: string
   model: string
   plate: string | null
+  photoUrl?: string | null
   status: string
   location: string | null
   nextAction: string | null

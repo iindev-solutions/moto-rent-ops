@@ -1,5 +1,6 @@
 import { setup, url } from '@nuxt/test-utils/e2e'
 import { afterAll, describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -123,6 +124,34 @@ describe('rental lifecycle', () => {
 
   it('logs the seeded owner in', async () => {
     await login()
+  })
+
+  it('login sets a session cookie the browser keeps over plain HTTP', async () => {
+    // Regression: the session cookie used to be marked `Secure`, which browsers
+    // silently drop on plain HTTP, so login from a LAN origin never stuck.
+    const response = await fetch(url('/api/auth/login'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: process.env.SEED_ADMIN_EMAIL,
+        password: process.env.SEED_ADMIN_PASSWORD,
+      }),
+    })
+    expect(response.status).toBe(200)
+    const setCookies = response.headers.getSetCookie()
+    const sessionCookie = setCookies.find(value => value.startsWith('nuxt-session='))
+    expect(sessionCookie, 'login must set the nuxt-session cookie').toBeTruthy()
+    const attributes = sessionCookie!.split(';').slice(1).map(part => part.trim().toLowerCase())
+    expect(attributes).not.toContain('secure')
+
+    // The cookie must round-trip: sending it back must return the session user.
+    const session = await fetch(url('/api/_auth/session'), {
+      headers: { cookie: sessionCookie!.split(';')[0]! },
+    })
+    expect(session.status).toBe(200)
+    const sessionSchema = z.object({ user: z.object({ id: z.string() }) })
+    const parsed = sessionSchema.safeParse(await session.json())
+    expect(parsed.success, 'session must contain the logged-in user').toBe(true)
   })
 
   it('persists login throttling in the database after ten failures', async () => {
