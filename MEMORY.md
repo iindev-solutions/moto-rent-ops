@@ -21,20 +21,21 @@ PostgreSQL-воркер/outbox · PWA · `zxing-wasm` с fallback на `BarcodeD
 - Сканы паспортов не хранятся: только custody-события и маскированные метаданные
 - Денежные суммы — в minor units (bigint)
 
-## Где мы сейчас (21.10.2026)
+## Где мы сейчас (28.10.2026)
 
-- Аудит от 19.10: `docs/audit-2026-10-19.html` — 4 P0 / 5 P1 / 11 P2, ~58% пути до R1
-- Все P0 и P1-2/P1-3 закрыты в `d850e8e` (в origin/master)
-- Публичный лендинг «MOTORBIKE FOR RENT A. CHÂU» (Đà Nẵng) готов: `app/pages/index.vue`,
-  i18n `lp.*` en/vi, стили в `main.css`
-- Лендинг сервер-рендерится (SEO/og), staff-маршруты остались SPA через `routeRules.ssr: false`
-- **P1-1 закрыт**: vitest + `@nuxt/test-utils`, 18 e2e-тестов на жизненный цикл аренды,
-  депозиты, гонку выдачи, негативные 401/404/409 и месячные оплаты; CI гоняет `npm test`
-- Платежи: дашборд показывает «Upcoming payments» (до 5 будущих остатков в 30 днях);
-  `/payments` — оплаты за месяц (Received + Still due, сводка, prev/next/This month);
-  `GET /api/payments?month=YYYY-MM`; последний коммит `378331d`
-- Дальше по плану: P1-4, P1-5, P2-1, P2-3, P2-4, P2-10
-- Детальные логи: `memory/2026-10-20.md`, `memory/2026-10-21.md`
+- 24.10: Phase 6 hardening и legacy import закоммичены локально (последний `7c36782`), не запушены
+- 24.10: outbox/Telegram (`f164502`), PWA offline card, QR-метки, финансовые guard'ы, версии договоров
+- 28.10: демо-QR работа закоммичена в `9a7a8cb` на ветке `spec-kit/adoption`:
+  публичная карточка `/b/{token}` без логина, `photo_url` + миграция 0019, фото байков,
+  HTTPS-туннель, фикс secure-cookie, trailing slash, защита тестовой БД от затирания
+- Проверка WIP: `npm run typecheck` — 0 ошибок; `npm test` — 49/49
+- 28.10: принят Spec Kit 1.2.4 (opencode integration). Конституция `1.0.0` в
+  `.specify/memory/constitution.md`; первый spec `specs/001-backup-restore-drill/`
+  (spec + plan + research + data-model + contracts + quickstart + 47 tasks)
+- Дальше: implement US1 (CLI backup/restore/drill + evidence), затем readiness/evidence UI
+- Открытые блокеры R1: реальный legacy-снимок и сверка владельцем, прод-деплой и креды,
+  реальный Telegram, физический принтер/устройства, backup/restore drill, pilot sign-off
+- Детальные логи: `memory/2026-10-24.md`, `memory/2026-10-28.md`
 
 ## Правила работы здесь
 
