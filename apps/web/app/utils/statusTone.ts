@@ -17,6 +17,9 @@ const tones: Record<string, string> = {
   expiring_soon: 'is-warning',
   valid: 'is-success',
   held: 'is-warning',
+  passed: 'is-success',
+  failed: 'is-danger',
+  running: 'is-accent',
 }
 
 export function statusTone(status: string | null | undefined): string {

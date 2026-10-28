@@ -8,7 +8,7 @@ const { t } = useLocale()
 const { user, clear } = useUserSession()
 const sidebarOpen = ref(false)
 const userMenuOpen = ref(false)
-const canViewOutbox = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
+const canViewAdmin = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
 
 type NavItem = {
   labelKey: MessageKey
@@ -39,6 +39,7 @@ const navGroups: Array<{ labelKey: MessageKey, items: NavItem[] }> = [
       { labelKey: 'nav.maintenance', icon: 'i-lucide-wrench', to: '/maintenance', enabled: true },
       { labelKey: 'nav.incidents', icon: 'i-lucide-alert-triangle', to: '/incidents', enabled: true },
       { labelKey: 'nav.notifications', icon: 'i-lucide-bell', to: '/notifications', enabled: true, ownerOnly: true },
+      { labelKey: 'nav.recovery', icon: 'i-lucide-life-buoy', to: '/recovery', enabled: true, ownerOnly: true },
     ],
   },
 ]
@@ -58,6 +59,7 @@ const pageTitle = computed(() => {
   if (route.path.startsWith('/maintenance')) return t('maintenance.title')
   if (route.path.startsWith('/incidents')) return t('incidents.title')
   if (route.path.startsWith('/notifications')) return t('notifications.title')
+  if (route.path.startsWith('/recovery')) return t('recovery.title')
   return t('nav.today')
 })
 
@@ -92,7 +94,7 @@ async function signOut() {
           <p class="nav-group-label">{{ t(group.labelKey) }}</p>
           <template v-for="item in group.items" :key="item.labelKey">
             <NuxtLink
-              v-if="item.enabled && (!item.ownerOnly || canViewOutbox)"
+              v-if="item.enabled && (!item.ownerOnly || canViewAdmin)"
               :to="item.to"
               class="nav-link"
               :class="{ 'is-active': route.path === item.to || route.path.startsWith(`${item.to}/`) }"

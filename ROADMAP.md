@@ -416,6 +416,8 @@ QR-метка на байке → сканирование в PWA → точна
 
 **Статус 2026-10-24:** staging → validation → dry-run → apply, source-row provenance, duplicate report, deterministic IDs and reconciliation totals implemented and verified with a synthetic snapshot. Real legacy snapshot, owner reconciliation, physical device/printer checks, backup/restore drill and pilot sign-off remain open.
 
+**Статус 2026-10-28:** backup/restore drill закрыт для PGlite/PostgreSQL и локального/S3-хранилища: манифест с SHA-256, изолированный target с fail-closed guard, сверка 27 record groups и финансовых итогов по валютам, append-only evidence с DB-триггерами, CLI `recovery:backup|restore|drill|verify`, owner/admin API и `/recovery` с readiness и историей. Проверено: `npm run typecheck`, `npm test` (95/95), `npm run build`; runbook `docs/runbooks/backup-restore.md`. Остаются реальный legacy snapshot, сверка с владельцем, физические проверки устройств/принтера, лицензии demo-фото и sign-off пилота.
+
 **R1 считается принятым, когда** весь текущий активный парк и открытые обязательства перенесены и сверены; печатный QR открывает нужную карточку на поддерживаемых устройствах; выдача/возврат, оплаты, депозит, документы, инциденты, аудит, восстановление и минимальные Telegram-события доказуемо работают.
 
 ### После R1

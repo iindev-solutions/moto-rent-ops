@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./crypto": "./src/crypto.ts",
+    "./recovery": "./src/recovery/index.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {

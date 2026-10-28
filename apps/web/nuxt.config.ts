@@ -105,6 +105,7 @@ export default defineNuxtConfig({
     '/maintenance': { ssr: false },
     '/incidents': { ssr: false },
     '/notifications': { ssr: false },
+    '/recovery': { ssr: false },
     '/people': { ssr: false },
     '/people/**': { ssr: false },
     '/agreements/**': { ssr: false },

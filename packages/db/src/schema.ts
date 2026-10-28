@@ -479,3 +479,44 @@ export const legacyImportRows = pgTable('legacy_import_rows', {
   index('legacy_import_rows_target_idx').on(table.targetEntityType, table.targetEntityId),
   check('legacy_import_rows_status_chk', sql`${table.status} IN ('pending', 'valid', 'invalid', 'imported', 'duplicate', 'skipped')`),
 ])
+
+// Append-only recovery evidence. Terminal rows are guarded by database triggers
+// in migration 0020, not only by application code.
+export const recoveryDrills = pgTable('recovery_drills', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  operatorUserId: uuid('operator_user_id').notNull().references(() => users.id),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  targetEnvironment: varchar('target_environment', { length: 32 }).notNull(),
+  artifactRef: varchar('artifact_ref', { length: 240 }).notNull(),
+  manifestChecksum: varchar('manifest_checksum', { length: 80 }),
+  status: varchar('status', { length: 16 }).notNull().default('running'),
+  failureCode: varchar('failure_code', { length: 64 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('recovery_drills_operator_idx').on(table.operatorUserId),
+  index('recovery_drills_status_finished_idx').on(table.status, table.finishedAt),
+  check('recovery_drills_status_chk', sql`${table.status} IN ('running', 'passed', 'failed')`),
+  check('recovery_drills_terminal_chk', sql`${table.status} = 'running' OR (${table.finishedAt} IS NOT NULL AND (${table.status} = 'failed' OR ${table.manifestChecksum} IS NOT NULL))`),
+  check('recovery_drills_failure_code_chk', sql`(${table.status} = 'failed' AND ${table.failureCode} IS NOT NULL) OR (${table.status} <> 'failed' AND ${table.failureCode} IS NULL)`),
+])
+
+export const recoveryDrillScopes = pgTable('recovery_drill_scopes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  drillId: uuid('drill_id').notNull().references(() => recoveryDrills.id),
+  scope: varchar('scope', { length: 120 }).notNull(),
+  expectedCount: integer('expected_count').notNull(),
+  actualCount: integer('actual_count').notNull(),
+  expectedTotalMinor: bigint('expected_total_minor', { mode: 'number' }),
+  actualTotalMinor: bigint('actual_total_minor', { mode: 'number' }),
+  currency: varchar('currency', { length: 8 }),
+  status: varchar('status', { length: 16 }).notNull(),
+  mismatchCode: varchar('mismatch_code', { length: 64 }),
+}, (table) => [
+  uniqueIndex('recovery_drill_scopes_drill_scope_uidx').on(table.drillId, table.scope),
+  index('recovery_drill_scopes_drill_idx').on(table.drillId),
+  check('recovery_drill_scopes_status_chk', sql`${table.status} IN ('passed', 'failed')`),
+  check('recovery_drill_scopes_counts_chk', sql`${table.expectedCount} >= 0 AND ${table.actualCount} >= 0`),
+  check('recovery_drill_scopes_totals_chk', sql`(${table.expectedTotalMinor} IS NULL AND ${table.actualTotalMinor} IS NULL AND ${table.currency} IS NULL) OR (${table.expectedTotalMinor} IS NOT NULL AND ${table.actualTotalMinor} IS NOT NULL AND ${table.currency} IS NOT NULL)`),
+  check('recovery_drill_scopes_mismatch_chk', sql`(${table.status} = 'failed' AND ${table.mismatchCode} IS NOT NULL) OR (${table.status} = 'passed' AND ${table.mismatchCode} IS NULL)`),
+])

@@ -34,6 +34,15 @@ const repoRoot = findRepoRoot(process.cwd())
 const migrationsFolder = resolve(repoRoot, 'packages/db/migrations')
 const defaultPgliteDirectory = resolve(repoRoot, 'packages/db/.data/pglite')
 
+/** Repository root resolved from the current working directory. */
+export const repositoryRoot = repoRoot
+
+/** Absolute PGlite data directory, matching the provider selection in `getDb()`. */
+export function resolvePgliteDataDir() {
+  const configured = process.env.PGLITE_DATA_DIR
+  return configured && isAbsolute(configured) ? configured : defaultPgliteDirectory
+}
+
 // Read these lazily: CLI scripts load dotenv after their static imports have
 // been evaluated, so module-level env reads would silently use PGlite instead
 // of the configured PostgreSQL database.
@@ -56,10 +65,7 @@ async function createDatabase(): Promise<AppDatabase> {
     return drizzleNodePostgres(pool, { schema })
   }
 
-  const configuredPgliteDirectory = process.env.PGLITE_DATA_DIR
-  const dataDirectory = configuredPgliteDirectory && isAbsolute(configuredPgliteDirectory)
-    ? configuredPgliteDirectory
-    : defaultPgliteDirectory
+  const dataDirectory = resolvePgliteDataDir()
   mkdirSync(dirname(dataDirectory), { recursive: true })
   pglite = new PGlite(dataDirectory)
   const db = drizzlePglite(pglite, { schema })

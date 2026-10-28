@@ -13,7 +13,7 @@ process.env.NUXT_SESSION_PASSWORD ||= 'test-session-password-0123456789abcdef'
 
 export default defineConfig({
   test: {
-    include: ['tests/e2e/**/*.spec.ts'],
+    include: ['tests/**/*.test.ts', 'tests/e2e/**/*.spec.ts'],
     environment: 'node',
     testTimeout: 120_000,
     hookTimeout: 240_000,

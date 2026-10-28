@@ -7,6 +7,7 @@ export interface ObjectStorage {
 import { LocalObjectStorage } from './local'
 import { S3ObjectStorage } from './s3'
 
+export * from './recovery'
 export { LocalObjectStorage, S3ObjectStorage }
 export type { S3ObjectStorageOptions } from './s3'
 

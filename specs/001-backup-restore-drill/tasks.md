@@ -20,11 +20,11 @@ independently.
 
 **Purpose**: Create the module skeletons, scripts, configuration keys, and runbook placeholder.
 
-- [ ] T001 Create recovery module directories and shared types in `packages/db/src/recovery/types.ts`
-- [ ] T002 [P] Create storage recovery adapter skeleton in `packages/storage/src/recovery.ts`
-- [ ] T003 [P] Add `recovery:backup`, `recovery:restore`, `recovery:drill`, and `recovery:verify` scripts to `package.json`
-- [ ] T004 [P] Document `RECOVERY_ROOT`, `RECOVERY_TARGET_ENV`, and `RECOVERY_RPO_HOURS` in `.env.example`
-- [ ] T005 [P] Create the runbook skeleton in `docs/runbooks/backup-restore.md`
+- [x] T001 Create recovery module directories and shared types in `packages/db/src/recovery/types.ts`
+- [x] T002 [P] Create storage recovery adapter skeleton in `packages/storage/src/recovery.ts`
+- [x] T003 [P] Add `recovery:backup`, `recovery:restore`, `recovery:drill`, and `recovery:verify` scripts to `package.json`
+- [x] T004 [P] Document `RECOVERY_ROOT`, `RECOVERY_TARGET_ENV`, and `RECOVERY_RPO_HOURS` in `.env.example`
+- [x] T005 [P] Create the runbook skeleton in `docs/runbooks/backup-restore.md`
 
 ---
 
@@ -33,19 +33,19 @@ independently.
 **Purpose**: Evidence schema, manifest, providers, verification engine, orchestration, and CLI
 plumbing. No user story work can begin until this phase is complete.
 
-- [ ] T006 Create migration `packages/db/migrations/0020_recovery_drills.sql` with `recovery_drills` and `recovery_drill_scopes`, including the `(drillId, scope)` unique constraint, status enums, and terminal-row immutability guards
-- [ ] T007 [P] Add Drizzle definitions for both recovery tables in `packages/db/src/schema.ts`
-- [ ] T008 [P] Implement manifest creation, SHA-256 checksums, and manifest validation in `packages/db/src/recovery/manifest.ts`
-- [ ] T009 [P] Implement the allowlisted report/error mapping in `apps/web/server/utils/recovery-report.ts`
-- [ ] T010 Implement the `RecoveryProvider` interface and environment-based selection in `packages/db/src/recovery/index.ts`
-- [ ] T011 Implement the PGlite provider (data-directory snapshot and restore) in `packages/db/src/recovery/pglite.ts`
-- [ ] T012 Implement the PostgreSQL provider (`pg_dump` custom archive and `pg_restore`) in `packages/db/src/recovery/postgres.ts`
-- [ ] T013 Implement document copy, checksum, and source-listing checks in `packages/storage/src/recovery.ts`
-- [ ] T014 Implement count and financial-total verification in `packages/db/src/recovery/verify.ts`
-- [ ] T015 Implement drill orchestration and evidence writes in `apps/web/server/utils/recovery-drill.ts`
-- [ ] T016 Implement the CLI argument parser, exit codes, and JSON output in `apps/web/scripts/recovery-drill.ts`
-- [ ] T017 Implement the readiness projection query in `apps/web/server/utils/recovery-status.ts`
-- [ ] T018 [P] Reuse the existing owner/admin authorization helper for recovery endpoints in `apps/web/server/utils/recovery-auth.ts`
+- [x] T006 Create migration `packages/db/migrations/0020_recovery_drills.sql` with `recovery_drills` and `recovery_drill_scopes`, including the `(drillId, scope)` unique constraint, status enums, and terminal-row immutability guards
+- [x] T007 [P] Add Drizzle definitions for both recovery tables in `packages/db/src/schema.ts`
+- [x] T008 [P] Implement manifest creation, SHA-256 checksums, and manifest validation in `packages/db/src/recovery/manifest.ts`
+- [x] T009 [P] Implement the allowlisted report/error mapping in `apps/web/server/utils/recovery-report.ts`
+- [x] T010 Implement the `RecoveryProvider` interface and environment-based selection in `packages/db/src/recovery/index.ts`
+- [x] T011 Implement the PGlite provider (data-directory snapshot and restore) in `packages/db/src/recovery/pglite.ts`
+- [x] T012 Implement the PostgreSQL provider (`pg_dump` custom archive and `pg_restore`) in `packages/db/src/recovery/postgres.ts`
+- [x] T013 Implement document copy, checksum, and source-listing checks in `packages/storage/src/recovery.ts`
+- [x] T014 Implement count and financial-total verification in `packages/db/src/recovery/verify.ts`
+- [x] T015 Implement drill orchestration and evidence writes in `apps/web/server/utils/recovery-drill.ts`
+- [x] T016 Implement the CLI argument parser, exit codes, and JSON output in `apps/web/scripts/recovery-drill.ts`
+- [x] T017 Implement the readiness projection query in `apps/web/server/utils/recovery-status.ts`
+- [x] T018 [P] Reuse the existing owner/admin authorization helper for recovery endpoints in `apps/web/server/utils/recovery-auth.ts`
 
 **Checkpoint**: foundation ready; user stories can begin.
 
@@ -63,20 +63,20 @@ and confirm exit code `0`, a passed JSON result, and a visible evidence row.
 
 > Write these tests first and confirm they fail before implementation.
 
-- [ ] T019 [P] [US1] Unit test manifest checksums and path-escape rejection in `apps/web/tests/recovery-manifest.test.ts`
-- [ ] T020 [P] [US1] Unit test count and financial-total mismatch reporting in `apps/web/tests/recovery-verify.test.ts`
-- [ ] T021 [P] [US1] Integration test the PGlite backup/restore/drill flow in `apps/web/tests/recovery-drill.test.ts`
-- [ ] T022 [P] [US1] Test the isolation guard refuses a missing marker and a production-matching target in `apps/web/tests/recovery-isolation.test.ts`
-- [ ] T023 [P] [US1] Test terminal evidence immutability and failed-drill evidence in `apps/web/tests/recovery-evidence.test.ts`
+- [x] T019 [P] [US1] Unit test manifest checksums and path-escape rejection in `apps/web/tests/recovery-manifest.test.ts`
+- [x] T020 [P] [US1] Unit test count and financial-total mismatch reporting in `apps/web/tests/recovery-verify.test.ts`
+- [x] T021 [P] [US1] Integration test the PGlite backup/restore/drill flow in `apps/web/tests/recovery-drill.test.ts`
+- [x] T022 [P] [US1] Test the isolation guard refuses a missing marker and a production-matching target in `apps/web/tests/recovery-isolation.test.ts`
+- [x] T023 [P] [US1] Test terminal evidence immutability and failed-drill evidence in `apps/web/tests/recovery-evidence.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T024 [US1] Implement `recovery:backup` in `apps/web/scripts/recovery-drill.ts`
-- [ ] T025 [US1] Implement `recovery:restore` with the isolation guard in `apps/web/scripts/recovery-drill.ts`
-- [ ] T026 [US1] Implement `recovery:drill` orchestration and exit codes in `apps/web/scripts/recovery-drill.ts`
-- [ ] T027 [US1] Persist terminal drill and per-scope evidence in `apps/web/server/utils/recovery-drill.ts`
-- [ ] T028 [US1] Write the drill completion audit event through the existing audit module in `apps/web/server/utils/recovery-drill.ts`
-- [ ] T029 [US1] Emit the contract-compliant JSON result and allowlisted failure codes in `apps/web/scripts/recovery-drill.ts`
+- [x] T024 [US1] Implement `recovery:backup` in `apps/web/scripts/recovery-drill.ts`
+- [x] T025 [US1] Implement `recovery:restore` with the isolation guard in `apps/web/scripts/recovery-drill.ts`
+- [x] T026 [US1] Implement `recovery:drill` orchestration and exit codes in `apps/web/scripts/recovery-drill.ts`
+- [x] T027 [US1] Persist terminal drill and per-scope evidence in `apps/web/server/utils/recovery-drill.ts`
+- [x] T028 [US1] Write the drill completion audit event through the existing audit module in `apps/web/server/utils/recovery-drill.ts`
+- [x] T029 [US1] Emit the contract-compliant JSON result and allowlisted failure codes in `apps/web/scripts/recovery-drill.ts`
 
 **Checkpoint**: User Story 1 is fully functional and testable from the CLI.
 
@@ -92,16 +92,16 @@ status is not ready and names the reason.
 
 ### Tests for User Story 2
 
-- [ ] T030 [P] [US2] Unit test readiness reasons (`no_drill`, `last_drill_failed`, `backup_stale`, `verification_incomplete`) in `apps/web/tests/recovery-status.test.ts`
-- [ ] T031 [P] [US2] E2E test owner/admin access and `401`/`403` behavior for the status endpoint in `apps/web/tests/e2e/recovery-drill.spec.ts`
+- [x] T030 [P] [US2] Unit test readiness reasons (`no_drill`, `last_drill_failed`, `backup_stale`, `verification_incomplete`) in `apps/web/tests/recovery-status.test.ts`
+- [x] T031 [P] [US2] E2E test owner/admin access and `401`/`403` behavior for the status endpoint in `apps/web/tests/e2e/recovery-drill.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Implement the readiness projection in `apps/web/server/utils/recovery-status.ts`
-- [ ] T033 [US2] Implement `GET /api/recovery/status` with `cache-control: no-store` in `apps/web/server/api/recovery/status.get.ts`
-- [ ] T034 [US2] Build the `/recovery` page with readiness state and reason in `apps/web/app/pages/recovery.vue`
-- [ ] T035 [US2] Add the owner/admin-only navigation entry in `apps/web/app/layouts/default.vue`
-- [ ] T036 [US2] Add `recovery.*` strings to `apps/web/app/locales/en.json` and `apps/web/app/locales/vi.json`
+- [x] T032 [US2] Implement the readiness projection in `apps/web/server/utils/recovery-status.ts`
+- [x] T033 [US2] Implement `GET /api/recovery/status` with `cache-control: no-store` in `apps/web/server/api/recovery/status.get.ts`
+- [x] T034 [US2] Build the `/recovery` page with readiness state and reason in `apps/web/app/pages/recovery.vue`
+- [x] T035 [US2] Add the owner/admin-only navigation entry in `apps/web/app/layouts/default.vue`
+- [x] T036 [US2] Add `recovery.*` strings to `apps/web/app/locales/en.json` and `apps/web/app/locales/vi.json`
 
 **Checkpoint**: readiness is visible without shell access.
 
@@ -117,15 +117,15 @@ secrets are absent.
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] E2E test drill list/detail access control and `404` for unknown IDs in `apps/web/tests/e2e/recovery-drill.spec.ts`
-- [ ] T038 [P] [US3] Test the evidence payload contains only allowlisted fields in `apps/web/tests/recovery-pii.test.ts`
+- [x] T037 [P] [US3] E2E test drill list/detail access control and `404` for unknown IDs in `apps/web/tests/e2e/recovery-drill.spec.ts`
+- [x] T038 [P] [US3] Test the evidence payload contains only allowlisted fields in `apps/web/tests/recovery-pii.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] Implement `GET /api/recovery/drills` with limit and cursor in `apps/web/server/api/recovery/drills/index.get.ts`
-- [ ] T040 [US3] Implement `GET /api/recovery/drills/[id]` with scopes in `apps/web/server/api/recovery/drills/[id].get.ts`
-- [ ] T041 [US3] Render the evidence list and detail on `/recovery` in `apps/web/app/pages/recovery.vue`
-- [ ] T042 [US3] Add the evidence list/detail strings to `apps/web/app/locales/en.json` and `apps/web/app/locales/vi.json`
+- [x] T039 [US3] Implement `GET /api/recovery/drills` with limit and cursor in `apps/web/server/api/recovery/drills/index.get.ts`
+- [x] T040 [US3] Implement `GET /api/recovery/drills/[id]` with scopes in `apps/web/server/api/recovery/drills/[id].get.ts`
+- [x] T041 [US3] Render the evidence list and detail on `/recovery` in `apps/web/app/pages/recovery.vue`
+- [x] T042 [US3] Add the evidence list/detail strings to `apps/web/app/locales/en.json` and `apps/web/app/locales/vi.json`
 
 **Checkpoint**: evidence is reviewable and PII-safe.
 
@@ -135,11 +135,11 @@ secrets are absent.
 
 **Purpose**: operational documentation and final verification.
 
-- [ ] T043 [P] Complete `docs/runbooks/backup-restore.md` with roles, RTO/RPO, failure handling, rollback, and evidence retention
-- [ ] T044 [P] Validate every `quickstart.md` scenario and record the results in the runbook drill log
-- [ ] T045 Run `npm run typecheck`, `npm test`, and `npm run build`; record the evidence
-- [ ] T046 [P] Update `ROADMAP.md` and `memory/2026-10-28.md` with the drill status and remaining Phase 6 gaps
-- [ ] T047 Review the final diff for PII, secrets, and unrelated changes, then commit the feature
+- [x] T043 [P] Complete `docs/runbooks/backup-restore.md` with roles, RTO/RPO, failure handling, rollback, and evidence retention
+- [x] T044 [P] Validate every `quickstart.md` scenario and record the results in the runbook drill log
+- [x] T045 Run `npm run typecheck`, `npm test`, and `npm run build`; record the evidence
+- [x] T046 [P] Update `ROADMAP.md` and `memory/2026-10-28.md` with the drill status and remaining Phase 6 gaps
+- [x] T047 Review the final diff for PII, secrets, and unrelated changes, then commit the feature
 
 ---
 
