@@ -7,6 +7,23 @@ const documents = computed(() => data.value?.documents || [])
 const pending = ref(false)
 const pendingId = ref('')
 const actionError = ref('')
+const editingId = ref('')
+const editNumber = ref('')
+const editExpiry = ref('')
+
+const expiredCount = computed(() => documents.value.filter((row: any) => row.expiryStatus === 'expired').length)
+const expiringCount = computed(() => documents.value.filter((row: any) => row.expiryStatus === 'expiring_soon').length)
+
+function startEdit(row: any) {
+  editingId.value = row.id
+  editNumber.value = row.maskedNumber || ''
+  editExpiry.value = row.expiresAt ? toLocalInputValue(new Date(row.expiresAt)).slice(0, 10) : ''
+  actionError.value = ''
+}
+
+function cancelEdit() {
+  editingId.value = ''
+}
 
 async function returnDocument(id: string) {
   pending.value = true
@@ -14,6 +31,21 @@ async function returnDocument(id: string) {
   actionError.value = ''
   try {
     await $fetch(`/api/documents/${id}/return`, { method: 'POST', body: {} })
+    await refresh()
+  } catch (error) { actionError.value = apiErrorMessage(error, t('common.error')) } finally { pending.value = false; pendingId.value = '' }
+}
+
+async function saveEdit(id: string) {
+  pending.value = true
+  pendingId.value = id
+  actionError.value = ''
+  try {
+    const expiresAt = editExpiry.value ? new Date(`${editExpiry.value}T23:59:59`).toISOString() : null
+    await $fetch(`/api/documents/${id}`, {
+      method: 'PATCH',
+      body: { maskedNumber: editNumber.value.trim() || null, expiresAt },
+    })
+    editingId.value = ''
     await refresh()
   } catch (error) { actionError.value = apiErrorMessage(error, t('common.error')) } finally { pending.value = false; pendingId.value = '' }
 }
@@ -33,25 +65,65 @@ async function returnDocument(id: string) {
 
     <section v-if="error" class="panel mb-4 border-[var(--danger)]/30 p-4 text-sm text-[var(--danger)]"><div class="flex flex-wrap items-center justify-between gap-3"><span>{{ t('common.loadError') }}</span><UButton class="button-secondary" variant="outline" @click="refresh()">{{ t('common.retry') }}</UButton></div></section>
 
-    <section v-else class="panel p-6">
-      <div v-if="documents.length" class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>{{ t('people.client') }}</th><th>{{ t('documents.type') }}</th><th>{{ t('documents.number') }}</th><th>{{ t('finance.status') }}</th><th>{{ t('people.received') }}</th><th><span class="sr-only">{{ t('common.actions') }}</span></th></tr></thead>
-          <tbody>
-            <tr v-for="row in documents" :key="row.id">
-              <td><NuxtLink :to="`/people/${row.clientId}`" class="font-semibold hover:text-[var(--accent)]">{{ row.clientName || row.clientId.slice(0, 8) }}</NuxtLink></td>
-              <td>{{ row.documentType }}</td>
-              <td class="font-mono text-xs">{{ row.maskedNumber || '—' }}</td>
-              <td><span class="status-pill">{{ tStatus(row.status) }}</span></td>
-              <td>{{ formatDateTime(row.receivedAt) }}</td>
-              <td class="text-right">
-                <UButton v-if="row.status === 'held'" size="xs" variant="ghost" :loading="pendingId === row.id && pending" @click="returnDocument(row.id)">{{ t('people.returnDocument') }}</UButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p v-else class="text-sm text-[var(--muted)]">{{ t('documents.empty') }}</p>
-    </section>
+    <template v-else>
+      <section v-if="expiredCount || expiringCount" class="panel mb-4 p-4" :class="expiredCount ? 'border-[var(--danger)]/40' : 'border-[var(--warning)]/40'" role="status">
+        <p class="font-semibold" :class="expiredCount ? 'text-[var(--danger)]' : 'text-[var(--warning)]'">{{ t('documents.expiryWarning') }}</p>
+        <p class="mt-1 text-sm text-[var(--muted)]">
+          <span v-if="expiredCount">{{ expiredCount }} {{ tStatus('expired') }}</span>
+          <span v-if="expiredCount && expiringCount"> · </span>
+          <span v-if="expiringCount">{{ expiringCount }} {{ tStatus('expiring_soon') }}</span>
+        </p>
+      </section>
+
+      <section class="panel p-6">
+        <div v-if="documents.length" class="overflow-x-auto">
+          <table class="data-table">
+            <thead><tr><th>{{ t('people.client') }}</th><th>{{ t('documents.type') }}</th><th>{{ t('documents.number') }}</th><th>{{ t('documents.expiry') }}</th><th>{{ t('finance.status') }}</th><th>{{ t('people.received') }}</th><th><span class="sr-only">{{ t('common.actions') }}</span></th></tr></thead>
+            <tbody>
+              <template v-for="row in documents" :key="row.id">
+                <tr>
+                  <td><NuxtLink :to="`/people/${row.clientId}`" class="font-semibold hover:text-[var(--accent)]">{{ row.clientName || row.clientId.slice(0, 8) }}</NuxtLink></td>
+                  <td>{{ row.documentType }}</td>
+                  <td class="font-mono text-xs">{{ row.maskedNumber || '—' }}</td>
+                  <td>
+                    <div v-if="row.expiresAt" class="flex flex-col items-start gap-1">
+                      <span>{{ formatDate(row.expiresAt) }}</span>
+                      <span v-if="row.expiryStatus" class="status-pill" :class="statusTone(row.expiryStatus)">{{ tStatus(row.expiryStatus) }}</span>
+                    </div>
+                    <span v-else class="text-[var(--muted)]">—</span>
+                  </td>
+                  <td><span class="status-pill">{{ tStatus(row.status) }}</span></td>
+                  <td>{{ formatDateTime(row.receivedAt) }}</td>
+                  <td>
+                    <div class="flex justify-end gap-1">
+                      <UButton v-if="row.status === 'held'" size="xs" variant="ghost" @click="startEdit(row)">{{ t('documents.expiryEdit') }}</UButton>
+                      <UButton v-if="row.status === 'held'" size="xs" variant="ghost" :loading="pendingId === row.id && pending" @click="returnDocument(row.id)">{{ t('people.returnDocument') }}</UButton>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="editingId === row.id">
+                  <td colspan="7">
+                    <div class="flex flex-wrap items-end gap-3 py-2">
+                      <div class="grid gap-1">
+                        <label class="text-xs text-[var(--muted)]" :for="`document-number-${row.id}`">{{ t('documents.number') }}</label>
+                        <UInput :id="`document-number-${row.id}`" v-model="editNumber" class="w-48" />
+                      </div>
+                      <div class="grid gap-1">
+                        <label class="text-xs text-[var(--muted)]" :for="`document-expiry-${row.id}`">{{ t('documents.expiry') }}</label>
+                        <UInput :id="`document-expiry-${row.id}`" v-model="editExpiry" type="date" class="w-44" />
+                        <span class="text-[10px] text-[var(--muted)]">{{ t('documents.expiryHint') }}</span>
+                      </div>
+                      <UButton size="sm" class="button-primary" :loading="pending && pendingId === row.id" @click="saveEdit(row.id)">{{ t('people.save') }}</UButton>
+                      <UButton size="sm" variant="ghost" @click="cancelEdit">{{ t('common.cancel') }}</UButton>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="text-sm text-[var(--muted)]">{{ t('documents.empty') }}</p>
+      </section>
+    </template>
   </div>
 </template>

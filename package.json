@@ -11,9 +11,18 @@
     "dev": "npm --workspace @book-moto/web run dev",
     "build": "npm --workspace @book-moto/web run build",
     "typecheck": "npm --workspace @book-moto/web run typecheck",
+    "test": "npm --workspace @book-moto/web run test",
     "db:generate": "npm --workspace @book-moto/db run generate",
     "db:migrate": "npm --workspace @book-moto/db run migrate",
-    "db:seed": "npm --workspace @book-moto/db run seed"
+    "db:seed": "npm --workspace @book-moto/db run seed",
+    "outbox:worker": "npm --workspace @book-moto/web run outbox:worker",
+    "recovery:backup": "tsx apps/web/scripts/recovery-drill.ts backup",
+    "recovery:restore": "tsx apps/web/scripts/recovery-drill.ts restore",
+    "recovery:drill": "tsx apps/web/scripts/recovery-drill.ts drill",
+    "recovery:verify": "tsx apps/web/scripts/recovery-drill.ts verify",
+    "import:legacy": "tsx apps/web/scripts/import-legacy.ts",
+    "tunnel": "node scripts/tunnel.mjs",
+    "tunnel:off": "powershell -NoProfile -Command \"Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force\""
   },
   "engines": {
     "node": ">=22.0.0"

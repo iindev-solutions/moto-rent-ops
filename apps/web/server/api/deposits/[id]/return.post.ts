@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
-import { getDb, deposits, auditEvents, depositDispositions, documentCustodies } from '@book-moto/db'
+import { getDb, deposits, auditEvents, depositDispositions, documentCustodies, clients } from '@book-moto/db'
+import { enqueueOutbox } from '../../../utils/outbox'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -42,6 +43,24 @@ export default defineEventHandler(async (event) => {
         entityType: 'deposit',
         entityId: id,
         metadata: { type: deposit.type, amountMinor: deposit.amountMinor, returnedMinor: Math.max(0, remaining) },
+      })
+
+      const [client] = await tx.select({ displayName: clients.displayName })
+        .from(clients)
+        .where(eq(clients.id, deposit.clientId))
+        .limit(1)
+      await enqueueOutbox(tx, {
+        eventType: 'deposit.returned',
+        aggregateType: 'deposit',
+        aggregateId: deposit.id,
+        dedupeKey: `deposit.returned:${deposit.id}`,
+        payload: {
+          depositId: deposit.id,
+          type: deposit.type,
+          amountMinor: Math.max(0, remaining),
+          currency: deposit.currency,
+          clientName: client?.displayName ?? null,
+        },
       })
     })
 

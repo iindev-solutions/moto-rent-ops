@@ -16,6 +16,7 @@ const contactChannel = ref('phone')
 const contactValue = ref('')
 const documentType = ref('passport')
 const maskedNumber = ref('')
+const documentExpiresAt = ref('')
 const documentPhotoFile = ref<File | null>(null)
 const agreementStart = ref(toLocalInputValue(new Date()))
 const agreementEnd = ref(toLocalInputValue(new Date(Date.now() + 7 * 86400000)))
@@ -56,7 +57,8 @@ async function addDocument() {
   actionError.value = ''
   const photo = documentPhotoFile.value
   try {
-    const result = await $fetch<{ document: { id: string } }>(`/api/people/${id.value}/documents`, { method: 'POST', body: { documentType: documentType.value, maskedNumber: maskedNumber.value || undefined } })
+    const expiresAt = documentExpiresAt.value ? new Date(`${documentExpiresAt.value}T23:59:59`).toISOString() : undefined
+    const result = await $fetch<{ document: { id: string } }>(`/api/people/${id.value}/documents`, { method: 'POST', body: { documentType: documentType.value, maskedNumber: maskedNumber.value || undefined, expiresAt } })
     if (photo && result.document?.id) {
       try {
         await uploadAttachment('document_custody', result.document.id, photo)
@@ -66,6 +68,7 @@ async function addDocument() {
     }
     documentOpen.value = false
     maskedNumber.value = ''
+    documentExpiresAt.value = ''
     documentPhotoFile.value = null
     await refresh()
   } catch (error) { actionError.value = apiErrorMessage(error, t('common.error')) } finally { pending.value = false }
@@ -149,6 +152,10 @@ async function createAgreement() {
               <span class="status-pill">{{ tStatus(document.status) }}</span>
             </div>
             <p v-if="document.maskedNumber" class="mt-1 font-mono text-xs text-[var(--muted)]">{{ document.maskedNumber }}</p>
+            <p v-if="document.expiresAt" class="mt-1 flex items-center gap-2 text-xs text-[var(--muted)]">
+              <span class="status-pill" :class="statusTone(document.expiryStatus)">{{ tStatus(document.expiryStatus) }}</span>
+              <span>{{ t('documents.expiry') }}: {{ formatDate(document.expiresAt) }}</span>
+            </p>
             <div v-if="document.attachments?.length" class="mt-2 flex gap-2">
               <a v-for="attachment in document.attachments" :key="attachment.id" :href="`/api/attachments/${attachment.id}`" target="_blank" rel="noopener">
                 <img :src="`/api/attachments/${attachment.id}`" :alt="t('photo.add')" class="size-12 rounded border border-[var(--line)] object-cover" />
@@ -162,6 +169,11 @@ async function createAgreement() {
         <div v-if="documentOpen" class="mt-4 grid gap-2">
           <UInput v-model="documentType" class="w-full" :placeholder="t('people.documentType')" />
           <UInput v-model="maskedNumber" class="w-full" :placeholder="t('people.maskedNumber')" />
+          <div class="grid gap-1">
+            <label class="text-xs text-[var(--muted)]" for="person-document-expiry">{{ t('documents.expiry') }}</label>
+            <UInput id="person-document-expiry" v-model="documentExpiresAt" type="date" class="w-full" />
+            <span class="text-[10px] text-[var(--muted)]">{{ t('documents.expiryHint') }}</span>
+          </div>
           <label class="block text-xs text-[var(--muted)]">
             <span>{{ t('photo.optional') }}</span>
             <input class="mt-1 block w-full text-xs" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" @change="onDocumentPhoto" />

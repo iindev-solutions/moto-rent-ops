@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { and, eq, gt, inArray, lt } from 'drizzle-orm'
 import { getDb, clients, clientContacts, rentalAgreements, rentalItems, motorcycles, handovers, obligations, deposits, documentCustodies, auditEvents } from '@book-moto/db'
+import { appendAgreementVersion } from '../../../server/utils/agreement-versions'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_DEPOSIT_MINOR = 2_000_000
@@ -15,11 +16,12 @@ const bodySchema = z.object({
   motorcycleId: z.string().uuid(),
   startDate: z.string().datetime().optional(),
   days: z.number().int().min(1).max(90),
-  dailyRateMinor: z.number().int().min(0).default(DEFAULT_RATE_MINOR),
-  currency: z.string().trim().length(3).default('VND'),
+  dailyRateMinor: z.number().int().min(1).default(DEFAULT_RATE_MINOR),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
   depositType: z.enum(['cash', 'document_custody']).default('cash'),
   depositAmountMinor: z.number().int().min(0).optional(),
   passportMaskedNumber: z.string().trim().max(64).optional(),
+  passportExpiresAt: z.string().datetime().optional(),
 }).refine(data => Boolean(data.clientId) !== Boolean(data.newClient), { message: 'Provide either clientId or newClient' })
 
 export default defineEventHandler(async (event) => {
@@ -31,6 +33,11 @@ export default defineEventHandler(async (event) => {
   const startDate = parsed.data.startDate ? new Date(parsed.data.startDate) : new Date()
   if (Number.isNaN(startDate.getTime())) throw createError({ statusCode: 400, statusMessage: 'Invalid start date' })
   const endDate = new Date(startDate.getTime() + parsed.data.days * DAY_MS)
+  const passportExpiresAt = parsed.data.passportExpiresAt ? new Date(parsed.data.passportExpiresAt) : null
+  if (passportExpiresAt && Number.isNaN(passportExpiresAt.getTime())) throw createError({ statusCode: 400, statusMessage: 'Invalid passport expiry date' })
+  if (parsed.data.depositType === 'document_custody' && passportExpiresAt && passportExpiresAt.getTime() < Date.now()) {
+    throw createError({ statusCode: 400, statusMessage: 'Passport is already expired' })
+  }
   const depositAmountMinor = parsed.data.depositType === 'cash'
     ? parsed.data.depositAmountMinor ?? DEFAULT_DEPOSIT_MINOR
     : null
@@ -94,6 +101,8 @@ export default defineEventHandler(async (event) => {
       }).returning()
       if (!item) throw createError({ statusCode: 500, statusMessage: 'Could not create rental item' })
 
+      await appendAgreementVersion(tx, agreement, 'created', user.id)
+
       const [handover] = await tx.insert(handovers).values({
         rentalItemId: item.id,
         motorcycleId: parsed.data.motorcycleId,
@@ -113,7 +122,6 @@ export default defineEventHandler(async (event) => {
         agreementId: agreement.id,
         rentalItemId: item.id,
         type: 'rent',
-        status: 'planned',
         amountMinor: rentAmountMinor,
         currency: parsed.data.currency,
         dueDate: endDate,
@@ -126,6 +134,7 @@ export default defineEventHandler(async (event) => {
           clientId,
           documentType: 'passport',
           maskedNumber: parsed.data.passportMaskedNumber || null,
+          expiresAt: passportExpiresAt,
           status: 'held',
           receivedByUserId: user.id,
         }).returning()

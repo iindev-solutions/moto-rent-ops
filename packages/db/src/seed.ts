@@ -1,12 +1,12 @@
 import { config } from 'dotenv'
 import { fileURLToPath } from 'node:url'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { hash } from 'argon2'
 import { randomUUID } from 'node:crypto'
-import { buildBikeDeepLink, canonicalizeLocatorToken } from '@book-moto/domain/qr'
+import { buildBikeDeepLink, canonicalizeLocatorToken, formatManualCode, generateManualCode } from '@book-moto/domain/qr'
 import { closeDb, getDb } from './client'
 import { decryptLocatorToken, encryptLocatorToken, hashLocatorToken } from './crypto'
-import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
+import { clients, clientContacts, deposits, documentCustodies, handovers, incidents, locationAssignments, maintenanceOrders, motorcycles, obligations, qrIdentities, qrPayloads, receipts, rentalAgreementVersions, rentalAgreements, rentalItems, returnInspections, users, allocations } from './schema'
 
 config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) })
 if (process.env.NODE_ENV === 'production') {
@@ -45,29 +45,63 @@ if (!adminUser) {
 }
 
 const fixtures = [
-  { assetCode: 'BM-001', model: 'Honda CB500F', plate: '59-B1 001', status: 'available', location: 'Hanoi Hub', nextAction: 'Print QR label' },
-  { assetCode: 'BM-002', model: 'Yamaha MT-07', plate: '59-B1 002', status: 'rented', location: 'Hanoi Hub', nextAction: 'Return check' },
-  { assetCode: 'BM-003', model: 'KTM 390 Adventure', plate: '59-B1 003', status: 'maintenance', location: 'Workshop', nextAction: 'Service due' },
-  { assetCode: 'BM-004', model: 'Honda XR150L', plate: '29-A1 004', status: 'rented', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-005', model: 'Yamaha XTZ150', plate: '29-A1 005', status: 'rented', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-006', model: 'Honda Vision', plate: '29-A2 006', status: 'available', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-007', model: 'Ducati Scrambler Icon', plate: '29-A3 007', status: 'reserved', location: 'Hanoi Hub', nextAction: 'Prepare for weekend pickup' },
-  { assetCode: 'BM-008', model: 'Honda CB300R', plate: '29-A1 008', status: 'available', location: 'Hanoi Hub', nextAction: null },
-  { assetCode: 'BM-009', model: 'Suzuki Raider R150', plate: '29-A1 009', status: 'inspection', location: 'Workshop', nextAction: 'Diagnose chain slip' },
-  { assetCode: 'BM-010', model: 'Honda Winner X', plate: '29-A2 010', status: 'maintenance', location: 'Workshop', nextAction: 'Inspection before re-rent' },
+  { assetCode: 'BM-001', model: 'Honda CB500F', plate: '59-B1 001', photoUrl: '/bike-photos/honda-cb500f.jpg', status: 'available', location: 'Đà Nẵng', nextAction: 'Print QR label' },
+  { assetCode: 'BM-002', model: 'Yamaha MT-07', plate: '59-B1 002', photoUrl: '/bike-photos/yamaha-mt07.jpg', status: 'rented', location: 'Đà Nẵng', nextAction: 'Return check' },
+  { assetCode: 'BM-003', model: 'KTM 390 Adventure', plate: '59-B1 003', photoUrl: null, status: 'maintenance', location: 'Workshop', nextAction: 'Service due' },
+  { assetCode: 'BM-004', model: 'Honda XR150L', plate: '29-A1 004', photoUrl: null, status: 'rented', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-005', model: 'Yamaha XTZ150', plate: '29-A1 005', photoUrl: null, status: 'rented', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-006', model: 'Honda Vision', plate: '29-A2 006', photoUrl: '/bike-photos/honda-vision.jpg', status: 'available', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-007', model: 'Ducati Scrambler Icon', plate: '29-A3 007', photoUrl: '/bike-photos/ducati-scrambler.jpg', status: 'reserved', location: 'Đà Nẵng', nextAction: 'Prepare for weekend pickup' },
+  { assetCode: 'BM-008', model: 'Honda CB300R', plate: '29-A1 008', photoUrl: '/bike-photos/honda-cb300r.jpg', status: 'available', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-009', model: 'Suzuki Raider R150', plate: '29-A1 009', photoUrl: '/bike-photos/suzuki-raider.jpg', status: 'inspection', location: 'Workshop', nextAction: 'Diagnose chain slip' },
+  { assetCode: 'BM-010', model: 'Honda Winner X', plate: '29-A2 010', photoUrl: '/bike-photos/honda-winner-x.jpg', status: 'maintenance', location: 'Workshop', nextAction: 'Inspection before re-rent' },
 ]
 
 const bikeIdByCode = new Map<string, string>()
+
+// Demo photos removed during the licensing review. Existing dev databases may
+// still point at them; clear those paths without touching real uploads.
+const removedDemoPhotoUrls = new Set([
+  '/bike-photos/ktm-390-adventure.jpg',
+  '/bike-photos/honda-xr150l.jpg',
+  '/bike-photos/yamaha-xtz150.jpg',
+])
 
 for (const fixture of fixtures) {
   let [bike] = await db.select().from(motorcycles).where(eq(motorcycles.assetCode, fixture.assetCode)).limit(1)
   if (!bike) {
     ;[bike] = await db.insert(motorcycles).values(fixture).returning()
+  } else {
+    const clearDemoPhoto = Boolean(bike.photoUrl && removedDemoPhotoUrls.has(bike.photoUrl))
+    if (bike.location !== fixture.location || (!bike.photoUrl && fixture.photoUrl) || clearDemoPhoto) {
+      // Never replace a photo that was uploaded in the app; only fill an empty one.
+      await db.update(motorcycles).set({
+        location: fixture.location,
+        ...(clearDemoPhoto ? { photoUrl: null } : bike.photoUrl ? {} : { photoUrl: fixture.photoUrl }),
+      }).where(eq(motorcycles.id, bike.id))
+    }
   }
   if (!bike) {
     throw new Error(`Could not create motorcycle ${fixture.assetCode}`)
   }
   bikeIdByCode.set(fixture.assetCode, bike.id)
+
+  const [openAssignment] = await db.select().from(locationAssignments).where(and(
+    eq(locationAssignments.motorcycleId, bike.id),
+    isNull(locationAssignments.endedAt),
+  )).limit(1)
+  if (!openAssignment || openAssignment.location !== fixture.location) {
+    const startedAt = new Date()
+    if (openAssignment) {
+      await db.update(locationAssignments).set({ endedAt: startedAt }).where(eq(locationAssignments.id, openAssignment.id))
+    }
+    await db.insert(locationAssignments).values({
+      motorcycleId: bike.id,
+      location: fixture.location,
+      note: 'Seed baseline',
+      startedAt,
+    })
+  }
 
   let [identity] = await db.select().from(qrIdentities).where(eq(qrIdentities.motorcycleId, bike.id)).limit(1)
   if (!identity) {
@@ -77,14 +111,14 @@ for (const fixture of fixtures) {
     throw new Error(`Could not create QR identity for ${fixture.assetCode}`)
   }
 
-  const [activePayload] = await db.select({ id: qrPayloads.id, tokenCiphertext: qrPayloads.tokenCiphertext }).from(qrPayloads).where(and(
+  const [activePayload] = await db.select({ id: qrPayloads.id, tokenCiphertext: qrPayloads.tokenCiphertext, manualCode: qrPayloads.manualCode }).from(qrPayloads).where(and(
     eq(qrPayloads.identityId, identity.id),
     eq(qrPayloads.status, 'active'),
   )).limit(1)
   if (activePayload) {
     const existingToken = decryptLocatorToken(activePayload.tokenCiphertext)
     if (existingToken) {
-      qrDeepLinks.push(buildBikeDeepLink(appUrl, existingToken))
+      qrDeepLinks.push(`${buildBikeDeepLink(appUrl, existingToken)} (manual code: ${formatManualCode(activePayload.manualCode)})`)
     }
     continue
   }
@@ -93,13 +127,15 @@ for (const fixture of fixtures) {
   if (!token) {
     throw new Error('Generated bike token is invalid')
   }
+  const manualCode = generateManualCode()
 
   await db.insert(qrPayloads).values({
     identityId: identity.id,
     tokenHash: hashLocatorToken(token),
     tokenCiphertext: encryptLocatorToken(token),
+    manualCode,
   })
-  qrDeepLinks.push(buildBikeDeepLink(appUrl, token))
+  qrDeepLinks.push(`${buildBikeDeepLink(appUrl, token)} (manual code: ${formatManualCode(manualCode)})`)
 }
 
 function expectRow<T>(row: T | undefined, message: string): T {
@@ -107,6 +143,31 @@ function expectRow<T>(row: T | undefined, message: string): T {
     throw new Error(message)
   }
   return row
+}
+
+function agreementSnapshot(
+  agreement: typeof rentalAgreements.$inferSelect,
+  items: Array<typeof rentalItems.$inferSelect>,
+) {
+  return {
+    agreement: {
+      id: agreement.id,
+      clientId: agreement.clientId,
+      status: agreement.status,
+      startDate: agreement.startDate ? agreement.startDate.toISOString() : null,
+      endDate: agreement.endDate ? agreement.endDate.toISOString() : null,
+      notes: agreement.notes,
+    },
+    items: items.map(item => ({
+      id: item.id,
+      motorcycleId: item.motorcycleId,
+      startDate: item.startDate.toISOString(),
+      endDate: item.endDate.toISOString(),
+      dailyRateMinor: item.dailyRateMinor,
+      currency: item.currency,
+      status: item.status,
+    })),
+  }
 }
 
 const demoMarkerName = 'Nguyễn Văn Hùng'
@@ -176,9 +237,9 @@ if (existingDemoClient) {
     clientId: yuki.id, status: 'ready', startDate: at(2), endDate: at(9), notes: 'Weekend rental, pickup on Saturday morning.',
   }).returning())[0], 'Could not create agreement for Yuki')
 
-  await db.insert(rentalAgreements).values({
+  const agreementChau = expectRow((await db.insert(rentalAgreements).values({
     clientId: chau.id, status: 'draft', notes: 'Asked about a CB300R for next weekend.',
-  })
+  }).returning())[0], 'Could not create agreement for Châu')
 
   const itemHung = expectRow((await db.insert(rentalItems).values({
     agreementId: agreementHung.id, motorcycleId: bikeId('BM-004'), startDate: at(-3), endDate: at(4), dailyRateMinor: 350000, status: 'active',
@@ -192,9 +253,27 @@ if (existingDemoClient) {
     agreementId: agreementQuan.id, motorcycleId: bikeId('BM-006'), startDate: at(-20), endDate: at(-13), dailyRateMinor: 220000, status: 'returned',
   }).returning())[0], 'Could not create rental item for Quân')
 
-  await db.insert(rentalItems).values({
+  const itemYuki = expectRow((await db.insert(rentalItems).values({
     agreementId: agreementYuki.id, motorcycleId: bikeId('BM-007'), startDate: at(2), endDate: at(9), dailyRateMinor: 450000, status: 'planned',
-  })
+  }).returning())[0], 'Could not create rental item for Yuki')
+
+  await db.insert(rentalAgreementVersions).values([
+    { agreement: agreementHung, items: [itemHung], actorUserId: adminUser.id },
+    { agreement: agreementDaniel, items: [itemDaniel], actorUserId: adminUser.id },
+    { agreement: agreementQuan, items: [itemQuan], actorUserId: adminUser.id },
+    { agreement: agreementYuki, items: [itemYuki], actorUserId: adminUser.id },
+    { agreement: agreementChau, items: [], actorUserId: adminUser.id },
+  ].map(({ agreement, items, actorUserId }) => ({
+    agreementId: agreement.id,
+    version: agreement.version,
+    status: agreement.status,
+    changeReason: 'created',
+    startDate: agreement.startDate,
+    endDate: agreement.endDate,
+    notes: agreement.notes,
+    snapshot: agreementSnapshot(agreement, items),
+    createdByUserId: actorUserId,
+  })))
 
   await db.insert(handovers).values([
     { rentalItemId: itemHung.id, motorcycleId: bikeId('BM-004'), performedByUserId: adminUser.id, odometer: 12450, fuelLevel: 'full', checklist: { helmets: 2, phoneMount: true, damage: 'Minor scratch on left fairing' }, createdAt: at(-3) },

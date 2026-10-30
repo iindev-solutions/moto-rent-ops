@@ -7,8 +7,8 @@ const bodySchema = z.object({
   agreementId: z.string().uuid().optional(),
   rentalItemId: z.string().uuid().optional(),
   type: z.string().trim().min(2).max(32),
-  amountMinor: z.number().int().min(0),
-  currency: z.string().trim().length(3).default('VND'),
+  amountMinor: z.number().int().min(1),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
   dueDate: z.string().datetime().optional(),
   notes: z.string().trim().max(2000).optional(),
 })

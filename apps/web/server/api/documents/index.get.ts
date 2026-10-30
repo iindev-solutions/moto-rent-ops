@@ -1,9 +1,11 @@
 import { desc, inArray } from 'drizzle-orm'
 import { getDb, clients, documentCustodies } from '@book-moto/db'
+import { documentExpiryStatus } from '../../utils/documents'
+import { auditMaskedRequisitesRead } from '../../utils/pii-audit'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
-  await requireAppUser(event)
+  const user = await requireAppUser(event)
   const db = await getDb()
   try {
     const documents = await db.select().from(documentCustodies).orderBy(desc(documentCustodies.receivedAt))
@@ -13,6 +15,8 @@ export default defineEventHandler(async (event) => {
       : []
     const clientNames = new Map(clientRows.map(client => [client.id, client.displayName]))
 
+    await auditMaskedRequisitesRead(db, user.id, 'documents.list', documents)
+
     return {
       documents: documents.map(document => ({
         id: document.id,
@@ -20,6 +24,8 @@ export default defineEventHandler(async (event) => {
         clientName: clientNames.get(document.clientId) ?? null,
         documentType: document.documentType,
         maskedNumber: document.maskedNumber,
+        expiresAt: document.expiresAt ? document.expiresAt.toISOString() : null,
+        expiryStatus: documentExpiryStatus(document.expiresAt),
         status: document.status,
         receivedAt: document.receivedAt.toISOString(),
         returnedAt: document.returnedAt ? document.returnedAt.toISOString() : null,

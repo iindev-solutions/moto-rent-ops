@@ -7,7 +7,7 @@ const bodySchema = z.object({
   agreementId: z.string().uuid().optional(),
   type: z.enum(['cash', 'document_custody']).default('cash'),
   amountMinor: z.number().int().min(0).optional(),
-  currency: z.string().trim().length(3).default('VND'),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
   documentCustodyId: z.string().uuid().optional(),
   notes: z.string().trim().max(2000).optional(),
 })

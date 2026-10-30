@@ -1,11 +1,24 @@
 <script setup lang="ts">
+import { clearBikeCache } from '~/composables/useBikeCache'
+import { clearOfflineAccess } from '~/composables/useOfflineAccess'
+import type { MessageKey } from '~/composables/useLocale'
+
 const route = useRoute()
 const { t } = useLocale()
 const { user, clear } = useUserSession()
 const sidebarOpen = ref(false)
 const userMenuOpen = ref(false)
+const canViewAdmin = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
 
-const navGroups = [
+type NavItem = {
+  labelKey: MessageKey
+  icon: string
+  to: string
+  enabled: boolean
+  ownerOnly?: boolean
+}
+
+const navGroups: Array<{ labelKey: MessageKey, items: NavItem[] }> = [
   {
     labelKey: 'nav.workspace',
     items: [
@@ -21,12 +34,15 @@ const navGroups = [
     labelKey: 'nav.operations',
     items: [
       { labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance', enabled: true },
+      { labelKey: 'nav.payments', icon: 'i-lucide-receipt', to: '/payments', enabled: true },
       { labelKey: 'nav.documents', icon: 'i-lucide-folder-lock', to: '/documents', enabled: true },
       { labelKey: 'nav.maintenance', icon: 'i-lucide-wrench', to: '/maintenance', enabled: true },
       { labelKey: 'nav.incidents', icon: 'i-lucide-alert-triangle', to: '/incidents', enabled: true },
+      { labelKey: 'nav.notifications', icon: 'i-lucide-bell', to: '/notifications', enabled: true, ownerOnly: true },
+      { labelKey: 'nav.recovery', icon: 'i-lucide-life-buoy', to: '/recovery', enabled: true, ownerOnly: true },
     ],
   },
-] as const
+]
 
 const pageTitle = computed(() => {
   if (route.path.startsWith('/b/')) return t('bike.motorcycle')
@@ -35,17 +51,22 @@ const pageTitle = computed(() => {
   if (route.path.startsWith('/bikes')) return t('fleet.title')
   if (route.path.startsWith('/people')) return t('people.title')
   if (route.path.startsWith('/finance')) return t('finance.title')
+  if (route.path.startsWith('/payments')) return t('payments.title')
   if (route.path.startsWith('/rentals')) return t('rentals.title')
   if (route.path.startsWith('/rent')) return t('nav.rentOut')
   if (route.path.startsWith('/return')) return t('nav.returnBike')
   if (route.path.startsWith('/documents')) return t('documents.title')
   if (route.path.startsWith('/maintenance')) return t('maintenance.title')
   if (route.path.startsWith('/incidents')) return t('incidents.title')
+  if (route.path.startsWith('/notifications')) return t('notifications.title')
+  if (route.path.startsWith('/recovery')) return t('recovery.title')
   return t('nav.today')
 })
 
 async function signOut() {
   userMenuOpen.value = false
+  await clearBikeCache()
+  clearOfflineAccess()
   await clear()
   await navigateTo('/login')
 }
@@ -63,7 +84,7 @@ async function signOut() {
         <span class="workspace-avatar">M</span>
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-semibold">MOTO//OPS</span>
-          <span class="block truncate text-[11px] text-[var(--text-muted)]">{{ t('app.workspace') }}</span>
+          <span class="block truncate text-[12px] text-[var(--text-muted)]">{{ t('app.workspace') }}</span>
         </span>
         <UIcon name="i-lucide-chevrons-up-down" class="size-3.5 text-[var(--text-muted)]" />
       </div>
@@ -73,7 +94,7 @@ async function signOut() {
           <p class="nav-group-label">{{ t(group.labelKey) }}</p>
           <template v-for="item in group.items" :key="item.labelKey">
             <NuxtLink
-              v-if="item.enabled"
+              v-if="item.enabled && (!item.ownerOnly || canViewAdmin)"
               :to="item.to"
               class="nav-link"
               :class="{ 'is-active': route.path === item.to || route.path.startsWith(`${item.to}/`) }"
@@ -82,7 +103,7 @@ async function signOut() {
               <UIcon :name="item.icon" class="size-4" />
               <span>{{ t(item.labelKey) }}</span>
             </NuxtLink>
-            <span v-else class="nav-link is-disabled" :aria-disabled="true">
+            <span v-else-if="!item.enabled" class="nav-link is-disabled" :aria-disabled="true">
               <UIcon :name="item.icon" class="size-4" />
               <span>{{ t(item.labelKey) }}</span>
               <span class="nav-link-badge">{{ t('nav.soon') }}</span>
@@ -95,7 +116,7 @@ async function signOut() {
         <div class="sidebar-status"><span class="status-dot" /> <span>{{ t('common.apiOnline') }}</span></div>
         <button class="user-chip" type="button" @click="signOut">
           <span class="user-avatar">{{ user?.name?.charAt(0) || 'U' }}</span>
-          <span class="min-w-0 flex-1 text-left"><span class="block truncate text-xs font-semibold">{{ user?.name || 'User' }}</span><span class="block truncate text-[10px] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span></span>
+          <span class="min-w-0 flex-1 text-left"><span class="block truncate text-xs font-semibold">{{ user?.name || 'User' }}</span><span class="block truncate text-[11px] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span></span>
           <UIcon name="i-lucide-log-out" class="size-3.5 text-[var(--text-muted)]" />
         </button>
       </div>
@@ -130,8 +151,8 @@ async function signOut() {
                   <span class="user-avatar">{{ user?.name?.charAt(0) || 'U' }}</span>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-sm font-semibold">{{ user?.name || 'User' }}</span>
-                    <span class="block truncate text-[11px] text-[var(--text-muted)]">{{ user?.email || '' }}</span>
-                    <span class="block truncate text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span>
+                    <span class="block truncate text-xs text-[var(--text-muted)]">{{ user?.email || '' }}</span>
+                    <span class="block truncate text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">{{ user?.role || 'operator' }}</span>
                   </span>
                 </div>
                 <button class="topbar-user-item" type="button" role="menuitem" @click="signOut">

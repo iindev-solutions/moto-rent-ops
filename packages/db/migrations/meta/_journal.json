@@ -71,6 +71,83 @@
       "when": 1792351021547,
       "tag": "0009_common_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792597417795,
+      "tag": "0010_cloudy_scrambler",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792598037872,
+      "tag": "0011_pale_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792600492979,
+      "tag": "0012_messy_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792601194131,
+      "tag": "0013_wet_pete_wisdom",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792602990759,
+      "tag": "0014_confused_fabian_cortez",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792605362448,
+      "tag": "0015_bizarre_patriot",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792606109384,
+      "tag": "0016_fat_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792758624453,
+      "tag": "0017_blue_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792760766225,
+      "tag": "0018_icy_living_mummy",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792834999207,
+      "tag": "0019_petite_the_enforcers",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793183038424,
+      "tag": "0020_recovery_drills",
+      "breakpoints": true
     }
   ]
 }

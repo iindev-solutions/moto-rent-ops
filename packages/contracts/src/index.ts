@@ -3,10 +3,12 @@ export type BikeSummary = {
   assetCode: string
   model: string
   plate: string | null
+  photoUrl?: string | null
   status: string
   location: string | null
   nextAction: string | null
   qrToken?: string | null
+  manualCode?: string | null
 }
 
 export type DepositType = 'document_custody' | 'cash'
@@ -46,6 +48,16 @@ export type TodayQueue = {
   depositsPending: TodayQueueEntry[]
 }
 
+export type UpcomingPayment = {
+  id: string
+  clientName: string | null
+  type: string
+  amountMinor: number
+  balanceMinor: number
+  currency: string
+  dueDate: string
+}
+
 export type DashboardData = {
   stats: {
     total: number
@@ -55,11 +67,19 @@ export type DashboardData = {
   }
   recentBikes: BikeSummary[]
   queues: TodayQueue
+  upcomingPayments: UpcomingPayment[]
+}
+
+export type PageMeta = {
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
 }
 
 export type BikesResponse = {
   bikes: BikeSummary[]
-}
+} & PageMeta
 
 export type ClientSummary = {
   id: string
@@ -68,6 +88,21 @@ export type ClientSummary = {
   contactCount: number
   openDocumentCount: number
   activeAgreementCount: number
+}
+
+export type ClientsResponse = {
+  clients: ClientSummary[]
+} & PageMeta
+
+export type AgreementVersion = {
+  id: string
+  version: number
+  status: string
+  changeReason: string
+  startDate: string | null
+  endDate: string | null
+  itemCount: number
+  createdAt: string
 }
 
 export type ClientContact = {
@@ -82,10 +117,23 @@ export type AttachmentSummary = {
   contentType: string
 }
 
+export type DocumentExpiryStatus = 'expired' | 'expiring_soon' | 'valid'
+
+export type LocationAssignment = {
+  id: string
+  location: string
+  note: string | null
+  startedAt: string
+  endedAt: string | null
+  actorName: string | null
+}
+
 export type DocumentCustody = {
   id: string
   documentType: string
   maskedNumber: string | null
+  expiresAt: string | null
+  expiryStatus: DocumentExpiryStatus | null
   status: string
   receivedAt: string
   returnedAt: string | null
@@ -160,6 +208,31 @@ export type DepositSummaryV2 = {
   clientId: string
   receivedAt: string
   returnedAt: string | null
+}
+
+export type PaymentReceipt = ReceiptSummary & {
+  clientName: string | null
+}
+
+export type PaymentDue = ObligationSummary & {
+  clientName: string | null
+  dueDate: string
+}
+
+export type PaymentsData = {
+  month: string
+  receipts: PaymentReceipt[]
+  due: PaymentDue[]
+  totals: {
+    receivedMinor: number
+    dueMinor: number
+    overdueMinor: number
+  }
+  counts: {
+    receipts: number
+    due: number
+    overdue: number
+  }
 }
 
 export type QuickRentalResult = {

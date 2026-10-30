@@ -261,6 +261,48 @@ export default defineEventHandler(async (event) => {
     href: `/finance`,
   }))
 
+  // Future obligations with an outstanding balance, for the upcoming-payments panel
+  const in30Days = new Date(startOfToday.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const upcomingRows = await db.select({
+    id: obligations.id,
+    type: obligations.type,
+    amountMinor: obligations.amountMinor,
+    currency: obligations.currency,
+    dueDate: obligations.dueDate,
+    clientName: clients.displayName,
+  }).from(obligations)
+    .leftJoin(clients, eq(clients.id, obligations.clientId))
+    .where(and(
+      isNotNull(obligations.dueDate),
+      gte(obligations.dueDate, startOfToday),
+      lt(obligations.dueDate, in30Days),
+    ))
+    .orderBy(asc(obligations.dueDate))
+    .limit(QUEUE_LIMIT)
+
+  const upcomingAllocationSums = new Map<string, number>()
+  if (upcomingRows.length > 0) {
+    const upcomingAllocations = await db.select({
+      obligationId: allocations.obligationId,
+      amountMinor: allocations.amountMinor,
+    }).from(allocations).where(inArray(allocations.obligationId, upcomingRows.map(row => row.id)))
+    for (const allocation of upcomingAllocations) {
+      upcomingAllocationSums.set(allocation.obligationId, (upcomingAllocationSums.get(allocation.obligationId) ?? 0) + allocation.amountMinor)
+    }
+  }
+  const upcomingPayments = upcomingRows
+    .map(row => ({
+      id: row.id,
+      clientName: row.clientName,
+      type: row.type,
+      amountMinor: row.amountMinor,
+      balanceMinor: row.amountMinor - (upcomingAllocationSums.get(row.id) ?? 0),
+      currency: row.currency,
+      dueDate: row.dueDate!.toISOString(),
+    }))
+    .filter(row => row.balanceMinor > 0)
+    .slice(0, QUEUE_PAGE)
+
   return {
     stats: {
       total: visible.length,
@@ -278,5 +320,6 @@ export default defineEventHandler(async (event) => {
       openIncidents,
       depositsPending,
     },
+    upcomingPayments,
   }
 })

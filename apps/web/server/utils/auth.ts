@@ -9,6 +9,12 @@ export async function requireAppUser(event: Parameters<typeof requireUserSession
   return session.user
 }
 
+export function requireOwnerOrAdmin(user: User) {
+  if (!['owner', 'admin'].includes(user.role)) {
+    throw createError({ statusCode: 403, statusMessage: 'Owner or admin access required' })
+  }
+}
+
 export function canAccessLocation(user: User, location: string | null) {
   if (user.role === 'owner' || user.role === 'admin' || user.locationScope.includes('*')) {
     return true

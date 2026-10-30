@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { getDb, attachments, rentalAgreements, rentalItems, motorcycles, clients, documentCustodies, returnInspections } from '@book-moto/db'
+import { hasValidHeldDocument } from '../../../../server/utils/documents'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -61,6 +62,7 @@ export default defineEventHandler(async (event) => {
       if (!client) blockers.push('Client is missing')
       if (items.length === 0) blockers.push('Add at least one motorcycle')
       if (heldDocuments.length === 0) blockers.push('Receive a physical document before handover')
+      else if (!hasValidHeldDocument(heldDocuments)) blockers.push('The received document is expired')
       for (const item of items) {
         if (item.bikeStatus !== 'available') blockers.push(`${item.assetCode} is not available`)
       }

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, rentalAgreements, rentalItems, motorcycles, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   reason: z.string().trim().min(3).max(500).optional(),
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      await tx.update(rentalAgreements).set({ status: 'closed', updatedAt: new Date() }).where(eq(rentalAgreements.id, agreementId))
+      await advanceAgreementVersion(tx, agreementId, { status: 'closed' }, 'closed', user.id)
 
       await tx.insert(auditEvents).values({
         actorUserId: user.id,

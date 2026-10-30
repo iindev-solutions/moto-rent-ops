@@ -10,6 +10,9 @@ import * as schema from './schema'
 
 export type AppDatabase = PgliteDatabase<typeof schema> | NodePgDatabase<typeof schema>
 
+/** Transaction handle passed to `db.transaction()` callbacks. */
+export type DbTransaction = Parameters<Parameters<AppDatabase['transaction']>[0]>[0]
+
 let pool: Pool | undefined
 let pglite: PGlite | undefined
 let dbPromise: Promise<AppDatabase> | undefined
@@ -29,12 +32,30 @@ function findRepoRoot(start: string) {
 
 const repoRoot = findRepoRoot(process.cwd())
 const migrationsFolder = resolve(repoRoot, 'packages/db/migrations')
-const usePostgres = process.env.DATABASE_PROVIDER === 'postgres' || Boolean(process.env.DATABASE_URL)
-const autoMigratePglite = process.env.PGLITE_AUTO_MIGRATE !== 'false'
 const defaultPgliteDirectory = resolve(repoRoot, 'packages/db/.data/pglite')
 
+/** Repository root resolved from the current working directory. */
+export const repositoryRoot = repoRoot
+
+/** Absolute PGlite data directory, matching the provider selection in `getDb()`. */
+export function resolvePgliteDataDir() {
+  const configured = process.env.PGLITE_DATA_DIR
+  return configured && isAbsolute(configured) ? configured : defaultPgliteDirectory
+}
+
+// Read these lazily: CLI scripts load dotenv after their static imports have
+// been evaluated, so module-level env reads would silently use PGlite instead
+// of the configured PostgreSQL database.
+function usePostgresProvider() {
+  return process.env.DATABASE_PROVIDER === 'postgres' || Boolean(process.env.DATABASE_URL)
+}
+
+function shouldAutoMigratePglite() {
+  return process.env.PGLITE_AUTO_MIGRATE !== 'false'
+}
+
 async function createDatabase(): Promise<AppDatabase> {
-  if (usePostgres) {
+  if (usePostgresProvider()) {
     const connectionString = process.env.DATABASE_URL
     if (!connectionString) {
       throw new Error('DATABASE_URL is required when DATABASE_PROVIDER=postgres')
@@ -44,14 +65,11 @@ async function createDatabase(): Promise<AppDatabase> {
     return drizzleNodePostgres(pool, { schema })
   }
 
-  const configuredPgliteDirectory = process.env.PGLITE_DATA_DIR
-  const dataDirectory = configuredPgliteDirectory && isAbsolute(configuredPgliteDirectory)
-    ? configuredPgliteDirectory
-    : defaultPgliteDirectory
+  const dataDirectory = resolvePgliteDataDir()
   mkdirSync(dirname(dataDirectory), { recursive: true })
   pglite = new PGlite(dataDirectory)
   const db = drizzlePglite(pglite, { schema })
-  if (autoMigratePglite) {
+  if (shouldAutoMigratePglite()) {
     await migratePglite(db, { migrationsFolder })
   }
   return db
@@ -63,7 +81,7 @@ export function getDb() {
 }
 
 export async function migrateDatabase() {
-  if (usePostgres) {
+  if (usePostgresProvider()) {
     const db = await getDb()
     await migrateNodePostgres(db as NodePgDatabase<typeof schema>, { migrationsFolder })
     return

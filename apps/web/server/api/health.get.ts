@@ -3,13 +3,13 @@ import { getDb } from '@book-moto/db'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
-
   try {
     const db = await getDb()
     await db.execute(sql`select 1`)
     return {
       status: 'ok',
       service: 'book-moto-web',
+      database: 'ok',
       timestamp: new Date().toISOString(),
     }
   } catch {
@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
     return {
       status: 'degraded',
       service: 'book-moto-web',
+      database: 'unavailable',
       timestamp: new Date().toISOString(),
     }
   }

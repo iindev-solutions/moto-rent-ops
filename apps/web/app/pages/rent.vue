@@ -38,6 +38,7 @@ const endDate = computed(() => new Date(Date.now() + days.value * 86400000))
 const depositType = ref<'cash' | 'document_custody'>('cash')
 const depositAmount = ref(2000000)
 const passportMasked = ref('')
+const passportExpiresAt = ref('')
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 watch(clientQuery, (value) => {
@@ -83,7 +84,7 @@ function pickBike(bike: BikeSummary) {
 function onScan(value: string) {
   scannerOpen.value = false
   const token = normalizeLocatorToken(value)
-  const found = token ? availableBikes.value.find(bike => bike.qrToken === token) : undefined
+  const found = token ? availableBikes.value.find(bike => bike.qrToken === token || bike.manualCode === token) : undefined
   if (found) {
     pickBike(found)
   } else {
@@ -118,6 +119,10 @@ async function submit() {
     actionError.value = t('rent.needDays')
     return
   }
+  if (!rate.value || rate.value < 1) {
+    actionError.value = t('rent.needRate')
+    return
+  }
   if (depositType.value === 'cash' && (!depositAmount.value || depositAmount.value <= 0)) {
     actionError.value = t('rent.needDeposit')
     return
@@ -136,6 +141,9 @@ async function submit() {
         depositType: depositType.value,
         depositAmountMinor: depositType.value === 'cash' ? depositAmount.value : undefined,
         passportMaskedNumber: depositType.value === 'document_custody' ? passportMasked.value.trim() || undefined : undefined,
+        passportExpiresAt: depositType.value === 'document_custody' && passportExpiresAt.value
+          ? new Date(`${passportExpiresAt.value}T23:59:59`).toISOString()
+          : undefined,
       },
     })
 
@@ -175,6 +183,7 @@ function resetAll() {
   depositType.value = 'cash'
   depositAmount.value = 2000000
   passportMasked.value = ''
+  passportExpiresAt.value = ''
   photoFiles.value = []
   uploadedPhotoCount.value = 0
 }
@@ -279,14 +288,14 @@ onMounted(() => {
             :variant="days === preset ? 'solid' : 'outline'"
             @click="days = preset"
           >
-            {{ preset }} {{ t('rent.days') }}
+            {{ preset }} {{ preset === 1 ? t('rent.day') : t('rent.days') }}
           </UButton>
           <UInput v-model.number="days" type="number" min="1" max="90" class="w-24" :aria-label="t('rent.days')" />
         </div>
         <p class="mt-3 text-xs text-[var(--muted)]">{{ formatDateTime(endDate.toISOString()) }}</p>
         <div class="mt-4 grid gap-1">
           <label class="text-xs text-[var(--muted)]" for="rent-rate">{{ t('rent.rate') }}</label>
-          <UInput id="rent-rate" v-model.number="rate" type="number" min="0" step="10000" class="w-full" />
+          <UInput id="rent-rate" v-model.number="rate" type="number" min="1" step="10000" class="w-full" />
         </div>
       </section>
 
@@ -314,9 +323,16 @@ onMounted(() => {
           <label class="text-xs text-[var(--muted)]" for="rent-deposit">{{ t('rent.depositAmount') }}</label>
           <UInput id="rent-deposit" v-model.number="depositAmount" type="number" min="0" step="100000" class="w-full" />
         </div>
-        <div v-else class="mt-3 grid gap-1">
-          <label class="text-xs text-[var(--muted)]" for="rent-passport">{{ t('rent.passportNumber') }}</label>
-          <UInput id="rent-passport" v-model="passportMasked" class="w-full" />
+        <div v-else class="mt-3 grid gap-3">
+          <div class="grid gap-1">
+            <label class="text-xs text-[var(--muted)]" for="rent-passport">{{ t('rent.passportNumber') }}</label>
+            <UInput id="rent-passport" v-model="passportMasked" class="w-full" />
+          </div>
+          <div class="grid gap-1">
+            <label class="text-xs text-[var(--muted)]" for="rent-passport-expiry">{{ t('documents.expiry') }}</label>
+            <UInput id="rent-passport-expiry" v-model="passportExpiresAt" type="date" class="w-full" />
+            <span class="text-[10px] text-[var(--muted)]">{{ t('documents.expiryHint') }}</span>
+          </div>
         </div>
       </section>
 

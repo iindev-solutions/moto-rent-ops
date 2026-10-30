@@ -19,10 +19,17 @@ export default defineEventHandler(async (event) => {
       model: motorcycles.model,
       location: motorcycles.location,
       createdAt: maintenanceOrders.createdAt,
-    }).from(maintenanceOrders).leftJoin(motorcycles, eq(maintenanceOrders.motorcycleId, motorcycles.id)).orderBy(desc(maintenanceOrders.createdAt))
+    }).from(maintenanceOrders).leftJoin(motorcycles, eq(maintenanceOrders.motorcycleId, motorcycles.id)).orderBy(desc(maintenanceOrders.createdAt), desc(maintenanceOrders.id))
 
     const visible = rows.filter(row => canAccessLocation(user, row.location))
-    return { orders: visible.map(({ location: _location, ...r }) => ({ ...r, dueDate: r.dueDate ? r.dueDate.toISOString() : null, createdAt: r.createdAt.toISOString() })) }
+    const page = paginate(visible, readPagination(event))
+    return {
+      orders: page.items.map(({ location: _location, ...r }) => ({ ...r, dueDate: r.dueDate ? r.dueDate.toISOString() : null, createdAt: r.createdAt.toISOString() })),
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      hasMore: page.hasMore,
+    }
   } catch (error) {
     throwApiError(error)
   }

@@ -1,6 +1,7 @@
 import { z } from 'zod'
-import { and, eq, sql } from 'drizzle-orm'
-import { getDb, rentalItems, rentalAgreements, motorcycles, obligations, allocations, auditEvents } from '@book-moto/db'
+import { eq } from 'drizzle-orm'
+import { getDb, rentalItems, rentalAgreements, motorcycles, obligations, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../../server/utils/agreement-versions'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -33,27 +34,20 @@ export default defineEventHandler(async (event) => {
       await tx.update(rentalItems).set({ endDate: newEndDate, updatedAt: new Date() }).where(eq(rentalItems.id, itemId))
 
       const agreementEndDate = agreement.endDate && agreement.endDate > newEndDate ? agreement.endDate : newEndDate
-      await tx.update(rentalAgreements).set({ endDate: agreementEndDate, updatedAt: new Date() }).where(eq(rentalAgreements.id, agreement.id))
+      await advanceAgreementVersion(tx, agreement.id, { endDate: agreementEndDate }, 'extended', user.id)
 
-      const newDays = Math.max(1, Math.ceil((newEndDate.getTime() - item.startDate.getTime()) / DAY_MS))
-      const rentAmountMinor = item.dailyRateMinor * newDays
-      const [rentObligation] = await tx
-        .select({ id: obligations.id })
-        .from(obligations)
-        .where(and(eq(obligations.rentalItemId, itemId), eq(obligations.type, 'rent')))
-        .limit(1)
-      if (rentObligation) {
-        const allocatedRows = await tx
-          .select({ allocated: sql<number>`coalesce(sum(${allocations.amountMinor}), 0)::int` })
-          .from(allocations)
-          .where(eq(allocations.obligationId, rentObligation.id))
-        const allocated = allocatedRows[0]?.allocated ?? 0
-        await tx.update(obligations).set({
-          amountMinor: Math.max(rentAmountMinor, allocated),
-          dueDate: newEndDate,
-          updatedAt: new Date(),
-        }).where(eq(obligations.id, rentObligation.id))
-      }
+      // Extension is a new immutable financial fact. Never mutate the original rent obligation.
+      const extensionAmountMinor = item.dailyRateMinor * parsed.data.days
+      const [extension] = await tx.insert(obligations).values({
+        clientId: agreement.clientId,
+        agreementId: agreement.id,
+        rentalItemId: item.id,
+        type: 'rent_extension',
+        amountMinor: extensionAmountMinor,
+        currency: item.currency,
+        dueDate: newEndDate,
+        notes: `Rent extension for ${parsed.data.days} day(s)`,
+      }).returning()
 
       await tx.insert(auditEvents).values({
         actorUserId: user.id,
@@ -61,10 +55,15 @@ export default defineEventHandler(async (event) => {
         entityType: 'rental_item',
         entityId: itemId,
         location: bike.location,
-        metadata: { days: parsed.data.days, newEndDate: newEndDate.toISOString(), rentAmountMinor },
+        metadata: {
+          days: parsed.data.days,
+          newEndDate: newEndDate.toISOString(),
+          extensionAmountMinor,
+          extensionObligationId: extension?.id ?? null,
+        },
       })
 
-      return { endDate: newEndDate.toISOString(), rentAmountMinor }
+      return { endDate: newEndDate.toISOString(), extensionAmountMinor }
     })
 
     return { extended: true, ...result }

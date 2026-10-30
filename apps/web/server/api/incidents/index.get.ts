@@ -17,10 +17,17 @@ export default defineEventHandler(async (event) => {
       model: motorcycles.model,
       location: motorcycles.location,
       createdAt: incidents.createdAt,
-    }).from(incidents).leftJoin(motorcycles, eq(incidents.motorcycleId, motorcycles.id)).orderBy(desc(incidents.createdAt))
+    }).from(incidents).leftJoin(motorcycles, eq(incidents.motorcycleId, motorcycles.id)).orderBy(desc(incidents.createdAt), desc(incidents.id))
 
     const visible = rows.filter(row => row.motorcycleId === null || canAccessLocation(user, row.location))
-    return { incidents: visible.map(({ location: _location, ...r }) => ({ ...r, createdAt: r.createdAt.toISOString() })) }
+    const page = paginate(visible, readPagination(event))
+    return {
+      incidents: page.items.map(({ location: _location, ...r }) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      hasMore: page.hasMore,
+    }
   } catch (error) {
     throwApiError(error)
   }

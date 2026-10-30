@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { getDb, rentalAgreements, auditEvents, clients } from '@book-moto/db'
+import { appendAgreementVersion } from '../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   startDate: z.string().datetime(),
@@ -43,6 +44,8 @@ export default defineEventHandler(async (event) => {
         entityId: row.id,
         metadata: { clientId, startDate: parsed.data.startDate, endDate: parsed.data.endDate },
       })
+
+      await appendAgreementVersion(tx, row, 'created', user.id)
 
       return row
     })

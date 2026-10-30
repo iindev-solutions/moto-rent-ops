@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { and, eq, gt, inArray, lt } from 'drizzle-orm'
 import { getDb, rentalItems, rentalAgreements, motorcycles, auditEvents } from '@book-moto/db'
+import { advanceAgreementVersion } from '../../../../server/utils/agreement-versions'
 
 const bodySchema = z.object({
   motorcycleId: z.string().uuid(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
-  dailyRateMinor: z.number().int().min(0).default(0),
-  currency: z.string().trim().length(3).default('VND'),
+  dailyRateMinor: z.number().int().min(1),
+  currency: z.string().trim().toUpperCase().length(3).default('VND'),
 })
 
 export default defineEventHandler(async (event) => {
@@ -63,6 +64,8 @@ export default defineEventHandler(async (event) => {
         location: bike.location,
         metadata: { motorcycleId: parsed.data.motorcycleId, assetCode: bike.assetCode },
       })
+
+      await advanceAgreementVersion(tx, agreementId, {}, 'item_added', user.id)
 
       return row
     })
