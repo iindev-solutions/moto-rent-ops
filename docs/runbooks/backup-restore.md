@@ -200,6 +200,6 @@ Do not point `RECOVERY_TARGET_*` at production to "save time". The guard is desi
 | 2026-10-28 | PII boundary of API responses | Passed: no emails, phones, passport numbers, or names in list/detail payloads | E2E assertions and `recovery-pii.test.ts` |
 | 2026-10-28 | Outbound side effects | Passed: outbox event count unchanged after a full drill | `recovery-drill.test.ts` |
 | 2026-10-28 | Read-only verify of an already restored target | Passed: `verifyRecoveryBackup` matched checksum and every scope, wrote no evidence, refused a missing target without creating it | `recovery-drill.test.ts` |
-| 2026-10-28 | Full gates on branch `spec-kit/adoption` | Passed: `npm run typecheck` 0 errors; `npm test` 95/95 in 9 files; `npm run build` complete (24.9 MB) | Local gate run |
+| 2026-10-28 | Full gates on branch `spec-kit/adoption` | Passed: `npm run typecheck` 0 errors; `npm test` 97/97 in 10 files; `npm run build` complete (24.9 MB) | Local gate run |
 
 A skipped check is a gap, not a pass.

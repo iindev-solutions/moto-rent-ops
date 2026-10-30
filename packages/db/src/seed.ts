@@ -47,9 +47,9 @@ if (!adminUser) {
 const fixtures = [
   { assetCode: 'BM-001', model: 'Honda CB500F', plate: '59-B1 001', photoUrl: '/bike-photos/honda-cb500f.jpg', status: 'available', location: 'Đà Nẵng', nextAction: 'Print QR label' },
   { assetCode: 'BM-002', model: 'Yamaha MT-07', plate: '59-B1 002', photoUrl: '/bike-photos/yamaha-mt07.jpg', status: 'rented', location: 'Đà Nẵng', nextAction: 'Return check' },
-  { assetCode: 'BM-003', model: 'KTM 390 Adventure', plate: '59-B1 003', photoUrl: '/bike-photos/ktm-390-adventure.jpg', status: 'maintenance', location: 'Workshop', nextAction: 'Service due' },
-  { assetCode: 'BM-004', model: 'Honda XR150L', plate: '29-A1 004', photoUrl: '/bike-photos/honda-xr150l.jpg', status: 'rented', location: 'Đà Nẵng', nextAction: null },
-  { assetCode: 'BM-005', model: 'Yamaha XTZ150', plate: '29-A1 005', photoUrl: '/bike-photos/yamaha-xtz150.jpg', status: 'rented', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-003', model: 'KTM 390 Adventure', plate: '59-B1 003', photoUrl: null, status: 'maintenance', location: 'Workshop', nextAction: 'Service due' },
+  { assetCode: 'BM-004', model: 'Honda XR150L', plate: '29-A1 004', photoUrl: null, status: 'rented', location: 'Đà Nẵng', nextAction: null },
+  { assetCode: 'BM-005', model: 'Yamaha XTZ150', plate: '29-A1 005', photoUrl: null, status: 'rented', location: 'Đà Nẵng', nextAction: null },
   { assetCode: 'BM-006', model: 'Honda Vision', plate: '29-A2 006', photoUrl: '/bike-photos/honda-vision.jpg', status: 'available', location: 'Đà Nẵng', nextAction: null },
   { assetCode: 'BM-007', model: 'Ducati Scrambler Icon', plate: '29-A3 007', photoUrl: '/bike-photos/ducati-scrambler.jpg', status: 'reserved', location: 'Đà Nẵng', nextAction: 'Prepare for weekend pickup' },
   { assetCode: 'BM-008', model: 'Honda CB300R', plate: '29-A1 008', photoUrl: '/bike-photos/honda-cb300r.jpg', status: 'available', location: 'Đà Nẵng', nextAction: null },
@@ -59,16 +59,27 @@ const fixtures = [
 
 const bikeIdByCode = new Map<string, string>()
 
+// Demo photos removed during the licensing review. Existing dev databases may
+// still point at them; clear those paths without touching real uploads.
+const removedDemoPhotoUrls = new Set([
+  '/bike-photos/ktm-390-adventure.jpg',
+  '/bike-photos/honda-xr150l.jpg',
+  '/bike-photos/yamaha-xtz150.jpg',
+])
+
 for (const fixture of fixtures) {
   let [bike] = await db.select().from(motorcycles).where(eq(motorcycles.assetCode, fixture.assetCode)).limit(1)
   if (!bike) {
     ;[bike] = await db.insert(motorcycles).values(fixture).returning()
-  } else if (bike.location !== fixture.location || (!bike.photoUrl && fixture.photoUrl)) {
-    // Never replace a photo that was uploaded in the app; only fill an empty one.
-    await db.update(motorcycles).set({
-      location: fixture.location,
-      ...(bike.photoUrl ? {} : { photoUrl: fixture.photoUrl }),
-    }).where(eq(motorcycles.id, bike.id))
+  } else {
+    const clearDemoPhoto = Boolean(bike.photoUrl && removedDemoPhotoUrls.has(bike.photoUrl))
+    if (bike.location !== fixture.location || (!bike.photoUrl && fixture.photoUrl) || clearDemoPhoto) {
+      // Never replace a photo that was uploaded in the app; only fill an empty one.
+      await db.update(motorcycles).set({
+        location: fixture.location,
+        ...(clearDemoPhoto ? { photoUrl: null } : bike.photoUrl ? {} : { photoUrl: fixture.photoUrl }),
+      }).where(eq(motorcycles.id, bike.id))
+    }
   }
   if (!bike) {
     throw new Error(`Could not create motorcycle ${fixture.assetCode}`)
